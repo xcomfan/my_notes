@@ -312,6 +312,57 @@ You can split each of the `/17` in half again by using a `/18`; and so on till y
 
 IPv6 has effectively infinite IPv6 addresses.
 
+# VLANs, Trunks and Q-in-Q
+
+Imagine a scenario where you need to have different networks for different parts of your business. For example an out of band management network an office network, a server network, production network, a testing network. Isolating these on a physical network while still allowing them to communicate is very difficult. This is where VLANs come in.
+
+VLANs work by leveraging the 802.1q standard (also known as 1.Q) which changes the frame format of a standard Layer 2 Ethernet Frame by adding a 32 bit field. (Frame size is made larger to acomodate this new data) 12 bits of this field can be used to represent values from 0 to 4096 which identifies the VLAN. A 0 in this field means no VLAN; 1 if generally used to signify the management VLAN. Rest can be used as desired by the local network admin.
+
+This allows you to create virtual isolated network domains. A broadcast to all Fs (of a MAC address) would only be broadcast to devices on the same VLAN.
+
+A challenge you may run into is if you are working with a provider that on their network uses the same VLAN ID as you are using.  To help with this scenario 802.1AD standard helps. This is known as **QinQ** also known as provider bridging or stacked VLANs.  This adds another field to the Ethernet frame. So now you have one for your network known as the **CS tag** (customer tag) and one for the provider know as **SS tag** (service tag). Now both you and the provided can use VLAN tags. Once frame arrives at your network the SS tag is stripped off and you get the frame as a standard 802.1q style frame.
+
+In a VLAN capable network there are two kinds of ports on a switch the first is access ports that are used to connect devices on that network to the switch the other type is the trunk port which is used to connect switches to each other 802.1Q capable switches.
+
+On an access port, if a broadcast is received unlike a normal switch which would broadcast to every port except the one it received the broadcast from, a VLAN capable port needs to strip off the VLAN field from the frame as the devices receiving the broadcast may not be VLAN capable and won't know how to process the VLAN tag. The broadcast will also be sent to the trunk ports. So VLAN broadcast frames get forwarded either to all access ports with VLAN tag stripped or to the trunk port with the VLAN tag intact. Unicast is either sent directly to a device on that switch or a broadcast is done if the device is not on that switch. Note that when sending on a trunk port the VLAN tag is intact so you are sending to the specific VLAN on the other switch. Thus you have virtual networks.
+
+Devices on a VLAN cannot communicate to other VLANs without a Layer 3 router between them.
+
+VLANs allow you to create separate Level 2 networks with isolated traffic. These separate networks are individual broadcast domains.
+
+# SSL and TLS
+
+SSL = Secure Socket Layer
+TLS = Transport Layer Security (newer more secure version of SSL)
+
+
+# Border Gateway Protocol (BGP)
+
+An Autonomous System (AS) from perspective of BGP is a "black box".  An AS is controlled by a single entity and BGP has no idea what goes on inside an AS.
+
+Each AS is assigned a number between 0 and 65535 by IANA. Of that range 64512 to 65534 is for private use and can be used without needing an allocation for private peering. That number is the Autonomous System Number **ASN**. ASNs are how BGP identifies different networks.
+
+BGP is designed to be reliable and distributed. It operates on TCP over port 179.
+
+BGP is NOT automatic. You need to connect two Autonomous Systems manually for them to start sharing network information with each other.  An AS will learn network details from its peers and any information it has it will share with its peers. All the core networks of the internet are sharing topology information with each other.
+
+BGP is a path-vector protocol. It exchanges the best path to a destination between peers. This path is called the **ASPATH**. This just factors in number of hops. It does not take into account link speed or condition.
+
+**iBGP** = Internal BGP - Routine within an AS
+
+**eBGP** = External BGP - Routing between AS's
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
