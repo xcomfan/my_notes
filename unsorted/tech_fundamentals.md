@@ -352,6 +352,85 @@ BGP is a path-vector protocol. It exchanges the best path to a destination betwe
 
 **eBGP** = External BGP - Routing between AS's
 
+# Jumbo Frames and MTU
+
+An ethernet frame has overhead (the header) and the payload.  A normal payload is up to 1500 bytes but a Jumbo Frame is 9000 bytes.
+
+The reason you may want to utilize Jumbo Frames is if you want a lower ration of overhead to data being sent. You will also send fewer frames using Jumbo Frames and that may speed things up.
+
+You need to make sure that everything in the path supports Jumbo frames or you wind up with Fragmentation.
+
+In AWS you have these limitations:
+
+* Traffic outside of a single VPC does not support Jumbo Frames
+* Traffic over an inter region VPC peering connection does not support Jumbo Frames (same region peering does support it)
+* Traffic over VPN connections does not support Jumbo Frames
+* Traffic over an Internet Gateway does not support Jumbo Frames
+* Direct Connect DOES support Jumbo Frames
+* Transit Gateway can support up to 8500 bytes (larger than usual but not full Jumbo Frame)
+
+# Layer 7 Firewalls
+
+A Layer 7 Firewall will understand Layer 7 protocols (such as HTTP) and be able to inspect/operate on them and thus protect agains protocol specific attacks. All sorts of logic can be placed here such as spam filtering TLS termination etc.
+
+# IPSEC and VPN Fundamentals
+
+IPSEC is a group of protocols used to set up secure tunnels across insecure networks between two peers (local and remote).
+
+Any data carries over IPSEC tunnel is encrypted and thus cannot be viewed and can't be modified without detection.
+
+Similar to TLS you start with sharing an encryption key via asymmetric encryption to establish the tunnel and once established the shared symmetric key is used to encrypt and decrypt.
+
+IPSEC has two main phases:
+
+* IKE Phase 1 - The slow part where you authenticate via a password or a certificate and establish the shared symmetric encryption key. At the end of phase 1 you have a phase 1 tunnel and work of establishing a symmetric key is done.
+* IKE Phase 2 - Uses keys established in phase 1 for bulk data transfer. Creates an IPSEC SA phase 2 tunnel (architecturally running over phase 1)
+
+There are two types of VPNs; policy based VPNs have rules to figure out what if "interesting traffic" that needs to be sent over a tunnel or route based where target matching is used to figure out what should go over a tunnel.
+
+# Encryption Basics
+
+## Asymmetric Encryption
+
+* Both parties agree on asymmetric algorithm to use.
+*  Both parties have their own public and private key.
+* Public key cannot be used to decrypt data. Only the private key can decrypt data which was encrypted with the public key.
+	* public key is used for encryption only.
+* Sender of data can take the public key, encrypt the data and send it and only the holder of the private key can decrypt that data.
+
+Asymmetric encryption is computationally expensive so typically you will use it to agree on a symmetric key and use that to send data.
+
+## Signing
+
+Signing is when you use your private key to "sign" a message. The receiver of the message can use the senders public key to verify that the message was signed by the holder of the private key. This does not reveal the private key only validates that holder of private key was the one that encrypted the message.
+
+## Steganography
+
+With encryption if you encrypt something is is known that it is encrypted data and that you encrypted it. Steganography is used to obfuscate that you are the one that encrypted the data. This is typically done by hiding your encrypted data in another piece of data.
+
+## Digital Signatures
+
+Digital signatures verify the integrity of the data (the what) and authenticity of the data (the who). This lets you download some data from a specific entity and make sure that the data has not been tampered with and that the entity is the one that created the data.
+
+Layered on top of normal usage so if you don't care about verifying you can just use the data.
+
+* Hash of the data is taken, original data remains unaltered (integrity)
+	* This allows normal usage of data without worrying about hashing or keys.
+* Digitally sign the hash (using private key). This authenticates the hash.
+* Public key can be widely distributed.
+* hash cannot be changed as nobody else has the private key.
+* Document cannot be changed as this invalidates the HASH
+* trust public key -> trust private key -> trust entity -> trust data
+	* this is the chain of trust
+
+Receiver will use signature and public key to get back the original hash. Receiver can then use the same hashing algorithm to hash the documents and if the hashes match then the document can be trusted.
+
+# DNS
+
+
+
+
+
 
 
 
