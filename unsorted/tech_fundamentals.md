@@ -427,6 +427,59 @@ Receiver will use signature and public key to get back the original hash. Receiv
 
 # DNS
 
+## DNS Terms
+
+* **DNS Zone** - Think of a DNS zone as a database. `netflix.com` for example is a DNS Zone. Inside that zone are DNS records such as `www.netflix.com`.
+* DNS Zone information is stored in a file somewhere. That file is called a **Zone File**
+* **Name Server (NS)** is a DNS server that hosts one or more DNS Zones and stores one or more Zone Files.
+* **Authoritative** record means that it contains real/genuine records. The "boss" for the record.
+* **Non-Authoritative/cached** DNS records are copies of records/zones stored elsewhere to speed things up. Your router or another DNS host may be able to provide the DNS record for google.com for example because you visited it before. There expire baed on the TTL setting.
+
+## DNS Architecture
+
+
+DNS Starts with the **DNS Root**. This is a DNS server just like any other but every DNS client knows about and trusts the root. There are 13 root server IP addresses distributed geographically and managed by various organizations. ICAN for example operates one of the IP addresses. In reality each of these IP addresses is backed by many servers using any-cast IP addresses. Managed of the Root Zone is done by IANA.
+
+#TODO What is an any-cast IP address?
+
+Root Zone only stores high level information on Top Level Domains (TLDs). Thera are two types of TLDs; generic ones such as `.com` and country specific ones such as `.uk` or `.us`. IANA delegates the management of these TLDs to other organizations known as **Registries**. Thus the job of the Root Zone is to just point at these TLD registries. So for example Verisign controls the `.com` Zone; so in the Root Zone there is an entry that points at the name-servers that point at Verisign servers. 
+
+Obviously TLDs only store records for domains in that TLD. So the `.com` TLD will have a record for `netflix.com` but not for `www.netflix.com` or other records in `netflix`. Those records wold be in the `netflix` Zone. In this example the name servers for `netflix.com` would be **authoritative for the domain** 
+
+## What happens during a DNS query
+
+When we query from our local computer for `www.netflix.com` ...
+
+1. Check local cache and hosts file. If we don't have a record there we go to step 2.
+2. Query a DNS Resolver.  A DNS resolver is a type of DNS server often running on your home router or ISP that will do the query on our behalf. The resolver has a local cache and may be able to return a non authoritative answer from there. Assuming you don't have it there you go to step 3.
+3. DNS resolver will query the Root Zone via one of the 13 IP addresses. There are hard coded and updated by the operating system vendor. The root server will reply with the `.com` TLD name servers which gets us one step closer.
+4. Resolver will now query the `.com` name servers with the query `www.netflix.com` and they will delegate to the `netflix.com` name servers.
+5. Since `netflix.com` name server are authoritative for `netflix.com` they provide the answer to the DNS Resolver. 
+6. The DNS Resolver will cache the result and return it to the client which in this case is our machine.
+
+Every query to a name server in the chain moves you one stop closer to your answer. This is called "walking the tree"
+
+At the end of walking the tree you may not necessarily get an IP address. You may get another name via a CNAME entry and need to resolve that name.
+
+## What happens when a domain is registered
+
+When you register a domain there are a few key entities involved:
+
+* The person registering the domain
+* The Domain Registrar (such as Route53 or Hover). Registrar has one function; to let you purchase domains. To allow this they have a relationship with the registry for many top level domains.
+* The DNS Hosting Provider (Route53 and Hover are also examples of these) - operates DNS Zones and allows you to manage the content of those Zones.
+* The TLD Registry (Verisign if you are using .com for example)
+
+These entities may be a bit confusing because a lot of organizations such as Route53 provide multiple of these services.
+
+1. If the domain you want is available you par for the domain via the Registrar. Now you need a DNS Zone for the domain being registered and the Zone needs to be hosted on some name server. 
+2. If the DNS Hosting provider is the same as the Registrar the hosted zone is created automatically. If its a different company you will be asked for the information of where the name server is hosted. 
+3. Registrar communicates where your hosted zone for the domain is to the Registry for the TLD and those details are added to the TLD Zone.
+
+## DNS Sec
+
+
+
 
 
 
