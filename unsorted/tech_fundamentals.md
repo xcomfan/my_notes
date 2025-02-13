@@ -478,7 +478,71 @@ These entities may be a bit confusing because a lot of organizations such as Rou
 
 ## DNS Sec
 
+## Benefits of DNSSEC
 
+* Data Origin Authentication - Allows you to verify that the data you receive is from the Zone you expect. Also if you get cached results are they really from that zone.
+* Data Integrity Protection - ensures data has not been modified in transit or since it was created by the administrator of the zone.
+
+DNS uses public key cryptography to secure itself similar to how https works with certificates. 
+
+DNS Sec adds to DNS it does not replace it. If a device is not DNS Sec capable it will make a normal DNS query and get back normal DNS results. A device the is DNS Sec capable will make DNS Sec requests get DNS Sec results and will be able to verify them.
+
+In a compromised environment regular DNS has no way on knowing that you got a compromised results.
+
+DNS Sec cannot correct anything. It can just verify.
+
+## How DNSSEC works within a zone
+
+If you want to try a DNS sec request you can use the command `dig www.ican.org +dnssec`
+
+Below is a sample output. Notice the `RSIG` This is a DNS Sec resource type that is a digital signature which can be used to validate results.
+
+```
+; <<>> DiG 9.10.6 <<>> www.icann.org +dnssec
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 63376
+;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 1232
+;; QUESTION SECTION:
+;www.icann.org.			IN	A
+
+;; ANSWER SECTION:
+www.icann.org.		2955	IN	CNAME	www.icann.org.cdn.cloudflare.net.
+www.icann.org.		2955	IN	RRSIG	CNAME 13 3 3600 20250224035717 20250202204237 12050 icann.org. fJ1GpbIi6RcT6W3AnhjyPOCZwaKOPN9+ehyrCTlZnh9icF5huveEHjYJ pgELO1LJAociKrS+z3/X3PY2KDTpLQ==
+www.icann.org.cdn.cloudflare.net. 300 IN A	104.18.3.93
+www.icann.org.cdn.cloudflare.net. 300 IN A	104.18.2.93
+www.icann.org.cdn.cloudflare.net. 300 IN RRSIG	A 13 6 300 20250210131436 20250208111436 34505 cloudflare.net. H0RLPKECmFaCSrpXJ/q53pV0dX4SmCHFB12zmA0uk6h0uEoKAQMN+jTp tF5pF7MPlEEsKew1oRxJT6bpz2unoA==
+
+;; Query time: 15 msec
+;; SERVER: 192.168.50.1#53(192.168.50.1)
+;; WHEN: Sun Feb 09 04:14:36 PST 2025
+;; MSG SIZE  rcvd: 335
+```
+
+An **RRSET** in DNSSEC is a Resource Record Set. It lets you group related records together into a set. Fore example the CNAME www.ican.org the A record for that CNAME entry and the AAAA record for that CNAME entry can be group into a single RRSET. Similarly the MX records for a domain can be group into a single RRSET. Within an RRSET the names an types of records will be the same. 
+
+DNSSEC does not validate individual records but instead validates RRSETs.
+
+RRSETs are digitally singed using a public and private pari of keys knows as **Zone Signing Key (ZSK)** This key is not stored in the Zone but kept offline. 
+
+An RRSET is taken and encrypted with the private key creating the RRSIG. The RRSIG generated is stores in the Zone with the same record name, but the type RRSIG. When a regular DNS client make a request they will get the RRSET as the response but DNSSEC clients will get both the RRSET and the RRSIG. Note that if the RRSET changes the RRSIG needs to be updated to be valid. If the RRSET is changed without the updated signature the result is invalid. Thus you can tell that something was changed without the approval of the private key holder. (Only the private part of the key pair can be used for the signature)
+
+Inside a DNSSEC Zone will be a DNSKEY record which is used to share/distribute the public portion of the Zone Signing Key (ZSK). DNSKEY record can store two types of Keys a Zone Signing Key and a Key Signing Key. Each has a different flag value 256 means its a ZSK and 257 means KSK. 
+
+A DNSSEC resolver can take the value of the RRSET (the plain text part) and the RRSIG and use the DNSKEY record to verify that the RRSET value is authentic.
+
+This all assumes that we trust the DNSKEY. To establish a chain of trust to the DNS root you have an RRSIG for the DNSKEY itself. This is the Key Signing Key (KSK). The Key Signing Key is reference from the parents zone.  So when you sign your public ZSK you use the public portion of your KSK. The private portion of the KSK is trusted by the parents zone (similar to certificate authority). This establishes a chain of trust as well as lets a Zone rotate their ZSKs frequently without involving the parent zone.
+
+## More on the chain of trust
+
+The parent zone needs to be able to explicitly state that it trusts the child zone. This is done using a **Delegated Signer (DS)** record set. This stores a hash of the public portion of the child KSK in the parent Zone. Since the hash is unique and one way adding this record shows that the parent zone trusts the child zones KSK. Because we need a way to validate the DS record there is a corresponding RRSIG made using the parent zones private key.  Just like the the child zone the parent zone has DNSKEY records to share the public portion of its ZSK and KSK keys which are used to validate the RRSIGs in this Zone. This trust delegation continued all the way up to the root zone.
+
+The root zone is explicitly trusted because there is not parent to verify it. This trust is accomplished via the root signing ceremony.  The private DNS Root KSK is locked away in 2 locations one in California and one in Virginia. Trusting these keys is encoded into all DNSSEC clients. These are locked away on HSMs (Hardware Security Modules) and never exposed.  To get to the HSM you need to go though very strict security and verification. We all know the public part of this key. This key is the **Trust Anchor** . Because the Trust Anchor is hard to access the root zone has its own ZSK. This ZSK is generated in the [signing ceremony](https://www.cloudflare.com/dns/dnssec/root-signing-ceremony) you access the Trust Anchor to produce the root zone RRSIG DNS key. This process happens every 3 months and is publicly audited.
+
+[CloudFlare Write Up on how DNSSEC works](https://www.cloudflare.com/learning/dns/dnssec/how-dnssec-works/)
 
 
 
