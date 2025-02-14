@@ -42,3 +42,7 @@ permalink: /python/
 [Unsorted]({% link python/sort_me/unsorted.md %})
 
 [Web Frameworks]({% link python/web_frameworks/web_frameworks.md %})
+
+[[IDEs and Tools]]
+
+

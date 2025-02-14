@@ -1,10 +1,5 @@
----
-layout: page
-title: "Go Reference"
-permalink: /go/
----
 
-[comment]: <> (TODO: Just a comment for copy pasta)
+#TODO Need to fix all the links on this page to Obsidian forma.
 
 [Compiling your Go program]({% link go/compilation.md %})
 

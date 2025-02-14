@@ -1,8 +1,5 @@
----
-layout: page
-title: "Javascript Reference"
-permalink: /javascript/
----
+
+#TODO Fix the links on this page to Obsidian style
 
 [JavaScript Language]({% link javascript/general_syntax/general_syntax.md %})
 
