@@ -1,4 +1,10 @@
 
+# Adding VSCode to Path on Mac
+
+```bash
+export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+```
+
 # Plugins I use
 
 [GitLens](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens)

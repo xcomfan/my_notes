@@ -1,7 +1,4 @@
 
-[comment]: <> (TODO: Fix metadata around the site and see if you can update the styling to have a breadcrumb at the top.)
-[comment]: <> (TODO: Move Javascript to programming languages catagory that fans out when you write your python reference)
-
 ## [Algorithms]({% link algorithms/algorithms.md %})
 ## [AWS]({% link AWS/aws.md %})
 ## [Databases]({% link databases/databases.md %})
@@ -18,7 +15,7 @@
 
 [[Programming Languages]]
 
-[[Software and Tools]]
+[[Software and Tools Notes]]
 
 ## [System Design]({% link system_design/system_design.md %})
 ## [Terraform]({% link terraform/terraform.md %})
