@@ -13,7 +13,7 @@
 ## [Open Telemetry]({% link otel/otel.md %})
 ## [PKI]({% link pki.md %})
 
-[[Programming Languages]]
+[Programming Languages](Programming%20Languages.md)
 
 [[Software and Tools Notes]]
 
