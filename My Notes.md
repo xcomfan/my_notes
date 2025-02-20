@@ -15,7 +15,7 @@
 
 [Programming Languages](Programming%20Languages.md)
 
-[[Software and Tools Notes]]
+[Software and Tools Notes](Software%20and%20Tools%20Notes.md)
 
 ## [System Design]({% link system_design/system_design.md %})
 ## [Terraform]({% link terraform/terraform.md %})
