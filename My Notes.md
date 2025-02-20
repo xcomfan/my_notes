@@ -1,5 +1,5 @@
 
-## [Algorithms]({% link algorithms/algorithms.md %})
+[Algorithms](Algorithms.md)
 ## [AWS]({% link AWS/aws.md %})
 ## [Databases]({% link databases/databases.md %})
 ## [Docker]({% link docker/docker.md %})
