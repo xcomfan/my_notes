@@ -1,8 +1,3 @@
----
-layout: page
-title: "Python Built In Types"
-permalink: /python/built_in_types
----
 
 ## Immutable versus mutable objects in Python
 
@@ -10,9 +5,9 @@ In Python every variable holds an instance of an object. Whenever an object is i
 
 ## Python types
 
-[comment]: <> (TODO: This is just an outline based on https://docs.python.org/3/library/stdtypes.html that you may want to use as the structure of a list of things to cover.)
+#TODO: This is just an outline based on https://docs.python.org/3/library/stdtypes.html that you may want to use as the structure of a list of things to cover
 
-[comment]: <> (TODO: Fill out the table below and make links as your notes develop.)
+#TODO: Fill out the table below and make links as your notes develop
 
 * Boolean (immutable)
 * Numeric Types
@@ -33,7 +28,7 @@ In Python every variable holds an instance of an object. Whenever an object is i
   * frozenset
   * [enumerations]({% link python/built_in_types/enumerations.md %})
 * Mapping Types
-  * dict
+  * [Dictionaries](Dictionaries.md)
 * Collections
   * [Counter]({% link python/built_in_types/counter.md %})
 * Context Manager Types

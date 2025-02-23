@@ -1,11 +1,7 @@
----
-layout: page
-title: "Python Reference"
-permalink: /python/
----
 
-[comment]: <> (TODO: Look at https://docs.python.org/3/library/stdtypes.html for a comprehensive list of Python built in types you can use for organizing your notes.)
-[comment]: <> (TODO: The above link is also a good starting point for what to add to notes for each type.)
+#TODO: Look at https://docs.python.org/3/library/stdtypes.html for a comprehensive list of Python built in types you can use for organizing your notes.)
+
+#TODO: The above link is also a good starting point for what to add to notes for each type.
 
 [Style Guide]({% link python/style_guide.md %})
 
@@ -15,7 +11,7 @@ permalink: /python/
 
 [Printing]({% link python/print.md %})
 
-[Built in Types]({% link python/built_in_types/built_in_types.md %})
+[Built In Types](Built%20In%20Types.md)
 
 [Loops]({% link python/loops.md %})
 
