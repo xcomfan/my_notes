@@ -41,7 +41,7 @@ L + [4,5,6]
 ### List comprehension
  
 [ expression for target in iterable]
-[ [x**2,x**3] for x in range(4)] // output [[0,0],[1,1],[4,8],[9,27]]
+[ [x**2,x**3] for x in range(4)] // output `[[0,0],[1,1],[4,8],[9,27]]`
  
 #### Get col 2 of a matrix
  

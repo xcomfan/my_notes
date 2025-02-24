@@ -21,13 +21,13 @@
 
 [Functional Programming Tools]({% link python/functional_programming_tools.md %})
 
-[Function Decorators]({% link python/function_decorators.md %})
+[Function Decorators](Function%20Decorators.md)
 
 [Generators]({% link python/generators.md %})
 
 [Classes]({% link python/classes.md %})
 
-[Type Hints]({% link python/type_hints.md %})
+[Type Hints](Type%20Hints.md)
 
 [Concurrency]({% link python/concurrency/concurrency.md %})
 

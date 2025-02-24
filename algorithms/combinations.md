@@ -9,7 +9,7 @@ permalink: /algorithms/combinations
 Problem below creates an array with all combinations ***not permutations*** of k integers in range of 1 to n.  For example...
 
 Input: n = 4, k = 2
-Output: [[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]
+Output: `[[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]`
 
 ```python
 class Solution:
@@ -33,7 +33,7 @@ class Solution:
 A variation of above but if you choose to include or not include an integer.  For example...
 
 Input: nums = [1,2,3]
-Output: [[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]
+Output: `[[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]`
 
 ```python
 class Solution:
