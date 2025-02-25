@@ -1,10 +1,27 @@
----
-layout: page
-title: "AWS EKS"
-permalink: /aws/eks
----
+# Configuring Kubectl To Connect To EKS Cluster
 
-## Random notes from doc review
+```bash
+aws sts get-caller-identity
+aws eks update-kubeconfig --region <region_from_terraform_output> --name <name_from_terraform_output>
+kubectl get svc # To verify
+```
+
+Once connected you may want to create and set namespace.
+
+`kubectl create namespace <namespace_name>`
+
+And to configure kubectl to use the context you need to create the context and make it the default.
+
+With AWS I am doing this by modifying the one they create. So command looks like
+
+`kubectl config get-contexts` to get the details of current context then command below with the name to set the default namespace.
+
+```bash
+kubectl config set-context <context_name> --namespace <name_of_namespace>
+kubectl config use-context <context_name>
+```
+
+# Random notes from doc review
 
 The control plane positions at least two API server instances and three etcd instances across three AWS Availability Zones within an AWS Region. If a control plane instance falters, Amazon EKS quickly replaces it using different Availability Zone if needed.
 

@@ -1,6 +1,7 @@
 
 [Algorithms](Algorithms.md)
-## [AWS]({% link AWS/aws.md %})
+
+[AWS](AWS.md)
 ## [Databases]({% link databases/databases.md %})
 ## [Docker]({% link docker/docker.md %})
 ## [Git]({% link gitref/gitref.md %})
