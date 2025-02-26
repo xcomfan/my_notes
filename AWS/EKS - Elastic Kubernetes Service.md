@@ -17,8 +17,7 @@ With AWS I am doing this by modifying the one they create. So command looks like
 `kubectl config get-contexts` to get the details of current context then command below with the name to set the default namespace.
 
 ```bash
-kubectl config set-context <context_name> --namespace <name_of_namespace>
-kubectl config use-context <context_name>
+kubectl config set-context --current --namespace <name_of_namespace>
 ```
 
 # Random notes from doc review
