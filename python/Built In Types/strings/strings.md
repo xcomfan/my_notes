@@ -120,6 +120,23 @@ Both take `sepearartor` and `maxsplit` as potional parameters which specify the 
 * Use string methods instead of the string module its faster
 * Use startswith() and endswith() instead of slicing.
 
+
+* removeprefix and removesuffix - available with Python 3.9 and later.
+```python
+>>> "3 cool features in Python3.9".strip(" 3.9")
+'cool features in Python'
+>>> "3 cool features in Python3.9".removesuffix(" 3.9")
+'3 cool features in Python3.9'
+>>> "3 cool features in Python 3.9".removesuffix(" 3.9")
+'3 cool features in Python'
+>>> "3 cool features in Python 3.9".removeprefix(" 3.9")
+'3 cool features in Python 3.9'
+>>> "3 cool features in Python 3.9".removeprefix("3")
+' cool features in Python 3.9'
+>>> "Waikiki".removesuffix("ki") # only one instance of repitition is removed.
+'Waiki'
+>>>```
+
 ## String Operations
 
 ### Repetition

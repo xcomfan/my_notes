@@ -3,6 +3,10 @@
 
 `openssl x509 -noout -subject -enddate -serial -in mycert.pem`
 
+if you want to print out the readable version of a certificate (useful for seeing the SANs (subject alternate names use))
+
+`openssl x509 -in mycert.pem -text`
+
 # Verifying key works on certificate
 
 ```bash
