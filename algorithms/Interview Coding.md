@@ -7,6 +7,17 @@
 
 `mid = (left + right) // 2`
 
+### Navigating arrays
+
+if you need to visit every entry in an array and have an index variable to do it use the `range` function **without** subtracting 1 from array length. Range will give values from 0 to 1 less than the number you give it.
+
+```python
+for i in range(len(my_array)):
+  my_array[i]...
+```
+
+
+
 
 # Sliding Window
 
@@ -65,14 +76,11 @@ By moving at different speeds (say in a cyclic linked list) the algorithm proves
 
 Given two intervals `a` and `b`, there will be six different ways the two intervals can relate to each other:
 
-#TODO: Visual would be very helpful here refer to link and see if you can doctor something up without using images: https://hackernoon.com/14-patterns-to-ace-any-coding-interview-question-c5bb3357f6e)
-
 1. `a` and `b`do not overlap
 2. `a` and `b` overlap `b` ends after `a`
 3. `a` completely overlaps `b`
 4. `a` and `b` overlap `a` ends after `b`
 5. `b` completely overlaps `a`
-6. `a` and `b` do not overlap
 
 Understanding and recognizing these six cases will help solve a wide range of problems from inserting intervals to optimizing interval merges.
 
