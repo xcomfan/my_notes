@@ -15,6 +15,8 @@ export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/b
 
 [Remote SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh)
 
+Postman
+
 # User and Workspace Settings
 
 User settings are global across all Visual studio Code instances, while workspace setting are local to the specific folder or project workspace. 
