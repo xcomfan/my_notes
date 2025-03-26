@@ -1,3 +1,6 @@
+---
+Status: WIP
+---
 
 # Getting Started With Testing in Python
 
@@ -751,6 +754,1591 @@ Test passed.
 
 ### Understanding How `doctest` Matches Expected and Actual Test Output
 
+In practice, `doctest` is very strict when matching expected output with actual results. Using integers instead of floats will fail a test. Spaces, tabs or wrapping returned strings in double quotes or inserting blank lines will also break tests.
 
+Note that Python uses single instead of double quotes when displaying strings in an interactive session.
+
+One particular case to not is below:
+
+```python
+# failing_tests.py
+
+"""Sample failing tests.
+
+The output must not contain leading or trailing spaces
+>>> print("Hello, World!")
+  Hello, World!
+
+The output must not be a blank line
+>>> print()
+
+"""```
+
+In the test above we have two cases to keep an eye out for.
+
+The first test will have the below output. The reason it fails is because of a leading white space so be mindful of spaces.
+
+```python
+Trying:
+    print("Hello, World!")
+Expecting:
+      Hello, World!
+**********************************************************************
+File ".../failing_tests.py", line 18, in broken_tests
+Failed example:
+    print("Hello, World!")
+Expected:
+      Hello, World!
+Got:
+    Hello, World!
+```
+
+The second test yields the output below. In a regular REPL session, calling `print()` without argumetns displays a blank line. In a `doctest` test, a blank line means that the code you just executed doesn't issue any output. We will cover a placeholder for `<BLANKLINE>` later.
+
+```python
+Trying:
+    print()
+Expecting nothing
+**********************************************************************
+File ".../failing_tests.py", line 22, in broken_tests
+Failed example:
+    print()
+Expected nothing
+Got:
+    <BLANKLINE>
+**********************************************************************
+1 items had failures:
+   5 of   5 in broken_tests
+5 tests in 1 items.
+0 passed and 5 failed.
+***Test Failed*** 5 failures.
+```
+
+You need to guarantee a perfect match between the actual test output and the expected output.
+
+### Writing `doctest` Tests for Catching Exception
+
+The `doctest` module searches for test that looks like a Python exception report or traceback and checks it agains the exception your code raises. In the divide by zero test below we see two expected lines. The first is a header common to all exceptions, and the second contains the actual exception and its specific message. These two lines are the only requirement for `doctest` to successfully check for expected exceptions.
+
+When dealing with exception tracebacks, `doctest` completely ignores the traceback body because it can change unexpectedly. `doctest` is only concerned with the fist line which reads `Traceback (most recent call last):` and the last line. When you are writing your test you have the following options for writing the traceback body.
+
+* Completely remove/omit the traceback body (as in below example)
+* Replace parts or all of traceback with ellipsis `(...)`
+* Replace traceback body with text explanation.
+* Include a sample of traceback body.
+
+```python
+# calculations.py
+# ...
+
+def divide(a, b):
+    """Compute and return the quotient of two numbers.
+
+    Usage examples:
+    >>> divide(84, 2)
+    42.0
+    >>> divide(15, 3)
+    5.0
+    >>> divide(42, -2)
+    -21.0
+
+    >>> divide(42, 0)
+    Traceback (most recent call last):
+    ZeroDivisionError: division by zero
+    """
+    return float(a / b)
+```
+
+### Building More Elaborate `doctest` Tests
+
+The `doctest` module is able to run code that creates and imports objects, calls functions, assigns variables, evaluates expressions and more. You can use this to perform all kinds of preparation steps before running your actual test cases.
+
+Below is an example of testing a demo queue class. An important note on this example is that `doctest` runs individual docstrings in a dedicated context or scope. Therefore, names declared in one docstring can't be used in another docstring. We will cover the `doctest` scoping mechanism in more detail later.
+
+```python
+# queue.py
+
+from collections import deque
+
+class Queue:
+    def __init__(self):
+        self._elements = deque()
+
+    def enqueue(self, element):
+        """Add items to the right end of the queue.
+
+        >>> numbers = Queue()
+        >>> numbers
+        Queue([])
+
+        >>> for number in range(1, 4):
+        ...     numbers.enqueue(number)
+
+        >>> numbers
+        Queue([1, 2, 3])
+        """
+        self._elements.append(element)
+
+    def dequeue(self):
+        """Remove and return an item from the left end of the queue.
+
+        >>> numbers = Queue()
+        >>> for number in range(1, 4):
+        ...     numbers.enqueue(number)
+        >>> numbers
+        Queue([1, 2, 3])
+
+        >>> numbers.dequeue()
+        1
+        >>> numbers.dequeue()
+        2
+        >>> numbers.dequeue()
+        3
+        >>> numbers
+        Queue([])
+        """
+        return self._elements.popleft()
+
+    def __repr__(self):
+        return f"{type(self).__name__}({list(self._elements)})"
+```
+
+### Dealing with Whitespaces and Other Characters
+
+If your expected output includes blank lines, then you must use the `<BLANKLINE>` placeholder tag to replace them:
+
+```python
+# greet.py
+
+def greet(name="World"):
+    """Print a greeting.
+
+    Usage examples:
+    >>> greet("Pythonista")
+    Hello, Pythonista!
+    <BLANKLINE>
+    How have you been?
+    """
+    print(f"Hello, {name}!")
+    print()
+    print("How have you been?")
+```
+
+Tabs are another complex case. Tabs in expected are automatically converted to spaces. Tabs in the actual output are not modified. This will make your test fail because the expected and actual output won't match. For this scenario you need to use the `NORMALIZE_WHITESPACE` option or [directive](https://docs.python.org/3/library/doctest.html#doctest-directives). We will cover how to embed directives into your `doctest` tests later.
+
+To deal with backlashes used for [explicit line joining](https://docs.python.org/3/reference/lexical_analysis.html#explicit-line-joining) you must use a raw string (an r-string), which will preserve your backslashes exactly as you type them.
+
+***Note:*** the leading `r` in the docsting.
+
+```python
+# greet.py
+
+def greet(name="World"):
+    r"""Print a greeting.
+
+    Usage examples:
+    >>> greet("Pythonista")
+    /== Hello, Pythonista! ==\
+    \== How have you been? ==/
+    """
+    print(f"/== Hello, {name}! ==\\")
+    print("\\== How have you been? ==/")
+```
+
+You can also use a regular string and escape the backslashes
+
+```python
+# greet.py
+
+def greet(name="World"):
+    """Print a greeting.
+
+    Usage examples:
+    >>> greet("Pythonista")
+    /== Hello, Pythonista! ==\\
+    \\== How have you been? ==/
+    """
+    print(f"/== Hello, {name}! ==\\")
+    print("\\== How have you been? ==/")
+```
+
+### Summarizing the `doctest` Test Syntax
+
+- Tests start after the **`>>>` prompt** and continue with the **`...` prompt**, just like in a Python interactive session.
+- **Expected outputs** must occupy the line or lines immediately after the test.
+- Outputs sent to the **standard output stream** are captured.
+- Outputs sent to the **standard error stream** aren’t captured.
+- The **column** at which a test starts doesn’t matter as long as the expected output is at the same level of indentation.
+
+The `doctest` module ignores anything that doesn't follow the `doctest` test syntax. This allows you to add explanatory text, diagrams or whatever you need. the line `Test below checks if the function catches zero divisions:` is an example of this.
+
+```python
+# calculations.py
+# ...
+
+def divide(a, b):
+    """Compute and return the quotient of two numbers.
+
+    Usage examples:
+    >>> divide(84, 2)
+    42.0
+    >>> divide(15, 3)
+    5.0
+    >>> divide(42, -2)
+    -21.0
+
+    The test below checks if the function catches zero divisions:
+    >>> divide(42, 0)
+    Traceback (most recent call last):
+    ZeroDivisionError: division by zero
+    """
+    return float(a / b)
+```
+
+## Providing `doctest` Tests in Your Projects
+
+In this section we will use a module called `calculations.py` as a sample project for running `doctest` tests from:
+
+* The `README.md` file
+* A dedicated test file
+* Docstrings
+
+The code for `calculations.py` can be found [here](https://github.com/xcomfan/real_python_examples/blob/44f0c926aa89f17bce8aff18a1f631bccca053e7/testing_learning_path/doctest_examples/calculations.py)
+
+### Including `doctest` Tests in Your Project's Documentation
+
+For the `calculations.py` file above we create the following [`README.md` file](https://github.com/xcomfan/real_python_examples/blob/44f0c926aa89f17bce8aff18a1f631bccca053e7/testing_learning_path/doctest_examples/README.md). 
+
+***Note:*** that the `doctest` tests in the README.md file import the module itself.
+
+***Note:*** Another important details is we include a [blank line](https://github.com/xcomfan/real_python_examples/blob/44f0c926aa89f17bce8aff18a1f631bccca053e7/testing_learning_path/doctest_examples/README.md?plain=1#L24) before the closing triple backticks. This is needed to signal that your `doctests` have finished, or else the triple backticks are interpreted as expected output.
+
+To run the test use the command `python -m doctest -v README.md` This produces output similar to that below.
+
+```text
+Trying:
+    import calculations
+Expecting nothing
+ok
+Trying:
+    calculations.add(2, 2)
+Expecting:
+    4.0
+ok
+Trying:
+    calculations.subtract(2, 2)
+Expecting:
+    0.0
+ok
+Trying:
+    calculations.multiply(2, 2)
+Expecting:
+    4.0
+ok
+Trying:
+    calculations.divide(2, 2)
+Expecting:
+    1.0
+ok
+1 items passed all tests:
+   5 tests in README.md
+5 tests in 1 items.
+5 passed and 0 failed.
+Test passed.
+```
+
+### Adding Dedicated Test Files to Your Project
+
+Another way to provide `doctest` test in your project is by suing a dedicated test file. You can do this with a plain text file. In our example we create the file [test_calculations.txt](https://github.com/xcomfan/real_python_examples/blob/a267c918328a282645938df921b920ee14374f17/testing_learning_path/doctest_examples/test_calculations.txt)
+
+You can run this test file file with the command `python -m doctest -v test_calculations.txt`
+
+### Embedding `doctest` Tests in Your Code's Docstrings
+
+This is the most common way to use `doctest`.  You can add `doctest` tests at different levels in your code.
+
+* Package
+* Module
+* Class and methods
+* Functions
+
+You can write package-level `doctest` tests inside the docstring of your package's `__init__.py` file. The other tests will live in the docstrings of their respective container objects.
+
+## Understanding the `doctest` Scoping Mechanism
+
+When you run `doctest` it creates a shallow copy of the modules global scope then `doctest` creates a local scope with the variables defined in whichever docstring is to be executed. Once the tests run, `doctest` cleans up its local scope, throwing away any local names. Thus local names declared in one docstring can't be used in the next docstring. Every `dotest` test runs in its own local scope but the global scope is common for all the tests.
+
+Below is an example of working with these scope limitations. All of these test pass when executed. Notice that the shallow copy of global scope allows the first `increment_by` test to run while the second `increment_by` test demonstrates that the local scope is deleted between docstrings.
+
+```python
+# context.py
+
+total = 100
+
+def decrement_by(number):
+    """Decrement the global total variable by a given number.
+
+    >>> local_total = decrement_by(50)
+    >>> local_total
+    50
+
+    Changes to total don't affect the code's global scope
+    >>> total
+    100
+    """
+    global total
+    total -= number
+    return total
+
+def increment_by(number):
+    """Increment the global total variable by a given number.
+
+    The initial value of total's shallow copy is 50
+    >>> increment_by(10)
+    60
+
+    The local_total variable is not defined in this test
+    >>> local_total
+    Traceback (most recent call last):
+    NameError: name 'local_total' is not defined
+    """
+    global total
+    total += number
+    return total
+```
+
+When you use a dedicated file to provide `doctest` tests, all the tests from the file will run in the same execution scope. This means that execution of a given test can affect the result of a later test. This is not ideal as a failing test may not be the root cause of the issue. You can give each test its own scope by either placing it in a separate file (kind of annoying to do) or wrapping it in a function as in the example below.
+
+```pyton
+>>> def test_add():
+...     import calculations
+...     return calculations.add(2, 4)
+>>> test_add()
+6.0
+```
+
+## Exploring Some Limitations of `doctest`
+
+`doctest` does not have support for [fixtures](https://docs.pytest.org/en/6.2.x/fixture.html#fixture) or the [setup](https://docs.python.org/3/library/unittest.html#unittest.TestCase.setUp) and [teardown](https://docs.python.org/3/library/unittest.html#unittest.TestCase.setUp) mechanisms of `unittest`.  You can take advantage of the [unittest API](https://docs.python.org/3/library/doctest.html?highlight=doctest#unittest-api) to reproduce some of the set up and tear down functionality.
+
+`doctest` also needs exact matches in output. This makes some modules hard to test. For example if function returns a set which in python does not have a guaranteed order your test will be flaky. You would have to find work arounds such as using the `sorted()` function to adjust the output. 
+
+`doctest` also does not have support for parameterization but you can simulate it with the technique below.
+
+```python
+# even_numbers.py
+
+def get_even_numbers(numbers):
+    """Return the even numbers in a list.
+
+    >>> args = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
+    >>> expected = [[2, 4], [6, 8], [10, 12]]
+
+    >>> for arg, expected in zip(args, expected):
+    ...     get_even_numbers(arg) == expected
+    True
+    True
+    True
+    """
+    return [number for number in numbers if number % 2 == 0]
+```
+
+One more limitation is is testing object creating using `object.__repr__()` because that output contains the object memory address which will change run to  run. To work around this you can use the [`ELLIPSIS`](https://docs.python.org/3/library/doctest.html#doctest.ELLIPSIS) directive as in the example below.
+
+```python
+# user.py
+
+class User:
+    def __init__(self, name, favorite_colors):
+        """Initialize instances of User.
+
+        Usage examples:
+        >>> User("John", {"#797EF6", "#4ADEDE", "#1AA7EC"}) # doctest: +ELLIPSIS
+        <user.User object at 0x...>
+        """
+        self.name = name
+        self._favorite_colors = set(favorite_colors)
+
+# ...
+```
+
+## Considering Security While Using `doctest`
+
+The `doctest` module uses `exec()` internally to executed tests embedded in docstrings and documentation files. This function is well known to be a risky for running arbitrary code, and that applies to `doctest`. Avoid running `docters` if you are not certain what the code is doing.
+
+## Using `doctest` for Test-Driven Development
+
+The flow should be:
+
+1. Write the tests in your docstrings or documentation using the `doctest` syntax.
+2. Write the code to pass the tests
+3. Run tests using `doctest`
+
+## Running Your Python `doctest` Tests
+
+You can run your `doctest` tests from inside your Python code.
+
+### Running `doctest` From Your Code
+
+`doctest` exports two modules which are useful for running `doctest` from inside your code.
+
+| Function     | Description                                     |
+| ------------ | ----------------------------------------------- |
+| `testfile()` | Runs `doctest` tests from a dedicated test file |
+| `testmod()`  | Runs `doctest` tests from a Python module       |
+
+```python
+# run_file_tests.py
+
+import doctest
+
+doctest.testfile("test_calculations.txt", verbose=True)
+```
+
+`testfile()` function takes some [optional arguments](https://docs.python.org/3/library/doctest.html#doctest.testfile) that let you customize details in the process of running your tests. 
+
+To run the `doctest` tests of a particular module you use `testmod()` as in the example below.  The name main idiom is to make sure this does not run on an import.
+
+```python
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+Another way is to create a dedicated runner file:
+
+```python
+# run_module_tests.py
+
+import doctest
+
+import calculations
+
+doctest.testmod(calculations, verbose=True)
+```
+
+Without the verbose option you won't get any output unless your tests fail. Check [documentation](https://docs.python.org/3/library/doctest.html#doctest.testmod) for more options.
+
+You can also use the modules [API](https://docs.python.org/3/library/doctest.html#advanced-api) if you need more fine grained control over your tests.
+
+## Controlling the Behavior of `doctest`: Flags and Directives
+
+The `doctest` module provides a series of named constants that you can use as flags when you run `doctest`. These can be used to add directives to your `doctest` tests such as:
+
+* Accepting True for 1
+* Rejecting blank lines
+* Normalizing whitespaces
+* Abbreviating outputs with ellipsis (`...`)
+* Ignoring exception details like the exception message
+* Skipping a given test
+* Finishing after the fist failing test
+
+Check [documentation](https://docs.python.org/3/library/doctest.html#option-flags) for the full list of directives.
+
+### Using Flags at the Command Line
+
+In example below we use `1` instead of `True` . This will pass but if want to be string an only accept true you can use `python -m doctest -o DONT_ACCEPT_TRUE_FOR_1 options.txt`
+
+```text
+>>> 5 < 7
+1
+```
+
+Another example if if you want to save yourself overly verbose validation for a string; you can enable ELLIPSES with:
+
+```shell
+$ python -m doctest \
+    -o DONT_ACCEPT_TRUE_FOR_1 \
+    -o ELLIPSIS options.txt
+```
+
+```text
+>>> print("Hello, Pythonista! Welcome to Real Python!")
+Hello, ... Python!
+```
+
+And to normalize text:
+
+```text
+>>> print("\tHello, World!")
+    Hello, World!
+```
+
+```Shell
+$ python -m doctest \
+    -o DONT_ACCEPT_TRUE_FOR_1 \
+    -o ELLIPSIS \
+    -o NORMALIZE_WHITESPACE options.txt
+```
+
+### Embedding Directives in Your `doctest` tests
+
+A `doctest` [directive](https://docs.python.org/3/library/doctest.html#doctest-directives) consists of an inline comment that begins with `# doctest:`
+
+```text
+>>> 5 < 7  # doctest: +DONT_ACCEPT_TRUE_FOR_1
+True
+
+>>> print(
+...    "Hello, Pythonista! Welcome to Real Python!"
+... )  # doctest: +ELLIPSIS
+Hello, ... Python!
+
+>>> print("\tHello, World!")  # doctest: +NORMALIZE_WHITESPACE
+    Hello, World!
+```
+
+## Running `doctest` Tests With `unittest` and `pytest`
+
+This is useful as you may want to use `doctest` but it may not be sufficient for everything you need in your project.
+
+### Using `unittest` to Run `doctest` Tests
+
+The `doctest` API allows you to convert `doctest` tests into [`unittest` test suites](https://docs.python.org/3/library/unittest.html#unittest.TestSuite). There are 2 main functions that drive this:
+
+| Function       | Description                                                                       |
+| -------------- | --------------------------------------------------------------------------------- |
+| `DocFileSuite` | Converts `doctest` tests from one or more text files into a `unittest` test suite |
+| `DocTestSuite` | Converts `doctest` tests from a module into a `unittest` suite                    |
+
+To integrate your `doctest` tests with the `unittest` discovery mechanism, you must add a `load_tests()` function to your `unittest` boilerplate code.
+
+```text
+>>> import calculations
+
+>>> calculations.add(2, 2)
+4.0
+
+>>> calculations.subtract(2, 2)
+0.0
+
+>>> calculations.multiply(2, 2)
+4.0
+
+>>> calculations.divide(2, 2)
+1.0
+```
+
+```python
+# test_calculations.py
+
+import doctest
+import unittest
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocFileSuite("test_calculations.txt"))
+    return tests
+
+# Your unittest tests goes here...
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+```Shell
+$ python test_calculations.py
+.
+---------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+```
+
+If your `doctest` tests live in your codes docstrings, then you can integrate them into your `unittest` suite with the below variation of `load_tests()`
+
+```python
+# test_calculations.py
+
+import doctest
+import unittest
+
+import calculations
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocTestSuite(calculations))
+    return tests
+
+# Your unittest goes here...
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+You can combine both options as well.
+
+```python
+import doctest
+import unittest
+
+import calculations
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocFileSuite("test_calculations.txt"))
+    tests.addTests(doctest.DocTestSuite(calculations))
+    return tests
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Using `pytest` to Run `doctest` Tests
+
+You can [integrate `doctest` tests with `pytest`](https://doc.pytest.org/en/latest/how-to/doctest.html) via the `pytest` `--doctest-glob` command line option. For example: `pytest --doctest-glob="test_calculations.txt`
+
+Just like `unittest`, `pytest` interprets your dedicated test file as a single test. The `--doctest-glob` option accepts and matches patterns that'll allow you turn multiple files. A helpful pattern would be `test*.txt`.
+
+You can also execute `doctest` tests directly from your code's deocstrings. To do this, you can use the `--doctest-modules` command line option which will scan all the modules under your working directory, loading and running any `doctest` tests it finds. To make this configuration permanent you can add the following parameter to pytests's configuration file in your project root directory.
+
+```txt
+; pytest.ini
+
+[pytest]
+addopts = --doctest-modules
+```
+
+
+# Python's `unittest`: Writing Unit Tests for Your Code
+
+## Getting to Know Python's `unittest`
+
+`unittest` supports some essential concepts that facilitate test creation, organization, and automation.
+
+* **Test case:** An individual unit of testing. It examines the output for a given input set.
+* **Test suite:** A collection of test cases, test suites, or both. They are grouped and executed as a whole.
+* **Test fixture:** A group of actions required to set up an environment for testing. It also included a teardown process after the tests run.
+* **Test runner:** A component that handles the execution of tests and communicates the results to the user.
+
+## Organizing Your Tests With the `TestCase` Class
+
+The `unittest` package defines the `TestCase` class, which is primarily designed for writing unit tests. To start writing your test cases, you just need to import the class and subclass it. Then, you’ll add methods whose names should begin with `test`. These methods will test a given unit of code using different inputs and check for the expected results.
+
+Below is an example which tests the built in `abs()` function
+
+```python
+import unittest
+
+class TestAbsFunction(unittest.TestCase):
+    def test_positive_number(self):
+        self.assertEqual(abs(10), 10)
+
+    def test_negative_number(self):
+        self.assertEqual(abs(-10), 10)
+
+    def test_zero(self):
+        self.assertEqual(abs(0), 0)
+```
+
+### Creating Test Cases
+
+In the following examples we will be testing this example function:
+
+```python
+def categorize_by_age(age):
+    if 0 <= age <= 9:
+        return "Child"
+    elif 9 < age <= 18:
+        return "Adolescent"
+    elif 18 < age <= 65:
+        return "Adult"
+    elif 65 < age <= 150:
+        return "Golden age"
+    else:
+        return f"Invalid age: {age}"
+```
+
+Below is an example of testing the example function. ***Note:*** that the test methods have multiple assertions.  Using multiple assertions has the following benefits.
+
+* Efficiency: Multiple assertions in a single test can reduce repetitive code.  It can also make tests run faster in those scenarios where you have to set up and tear down requirements for each test.
+* Contextual testing: Multiple assertions may be needed to check that a function behaves correctly in a specific context.
+* Convenience: Multiple assertions in a test can be more straightforward and less tedious to write compared to writing multiple single-assertion tests.
+
+Some down sides of multiple assertions are:
+
+* Clarity and isolation: When a test with multiple assertions fails, it can be harder to immediately identify which assertion caused the failure. 
+* Breakage risk: When an earlier assertion fails the subsequent ones are not executed. This can hide additional issues.
+* Test purpose blurring: When a test has multiple assertions it can become less focused and harder to understand.
+
+```python
+# ...
+
+class TestCategorizeByAge(unittest.TestCase):
+    # ...
+
+    def test_boundary_child_adolescent(self):
+        self.assertEqual(categorize_by_age(9), "Child")
+        self.assertEqual(categorize_by_age(10), "Adolescent")
+
+    def test_boundary_adolescent_adult(self):
+        self.assertEqual(categorize_by_age(18), "Adolescent")
+        self.assertEqual(categorize_by_age(19), "Adult")
+
+    def test_boundary_adult_golden_age(self):
+        self.assertEqual(categorize_by_age(65), "Adult")
+        self.assertEqual(categorize_by_age(66), "Golden age")
+```
+
+### Running `unittest` tests
+
+If you are calling `unittest.main()` to run `unittest` from your code, you can provide a verbosity option as in the example below.
+
+* `0` for quite
+* `1` for  normal
+* `2` for detailed
+
+```python
+# ...
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+If you want to make the output of your `unittest` runs more descriptive, you can add docstrings to your test cases as in the example below. The docstrings will be in the output as shown below when you use detailed output.
+
+```python
+# ...
+
+class TestCategorizeByAge(unittest.TestCase):
+    def test_child(self):
+        """Test for 'Child'"""
+        self.assertEqual(categorize_by_age(5), "Child")
+
+    def test_adolescent(self):
+        """Test for 'Adolescent'"""
+        self.assertEqual(categorize_by_age(15), "Adolescent")
+# ...
+```
+
+```shell
+$ python test_age.py
+test_adolescent (__main__.TestCategorizeByAge.test_adolescent)
+Test for 'Adolescent' ... ok
+test_adult (__main__.TestCategorizeByAge.test_adult)
+Test for 'Adult' ... ok
+```
+
+### Skipping Tests
+
+Some common scenarios where you may need to skip test cases are:
+
+* Incomplete feature
+* External services which may not be available yet
+* Conditional execution: May only want to run some tests is for example version of library is at some version.
+* Known failures: a bug being worked on 
+* Performance considerations: some tests may be time consuming and you don't always want to run them.
+* Deprecated features: if deprecated feature has not been removed from code yet you may want to skip the tests for it.
+
+The following decorators can be used to skip tests.
+
+| Decorator                                 | Description                                            |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `@unittest.skip(reason)`                  | Skips the decorated test                               |
+| `@unittest.skipIf(condition, reason)`     | Skips the decorated test if `condition` is `True`      |
+| `@unittest.skipUnless(condition, reason)` | Skips the decorated test unless `condidtion` is `True` |
+```python
+import sys
+import unittest
+
+class SkipTestExample(unittest.TestCase):
+    @unittest.skip("Unconditionally skipped test")
+    def test_unimportant(self):
+        self.fail("The test should be skipped")
+
+    @unittest.skipIf(sys.version_info < (3, 12), "Requires Python >= 3.12")
+    def test_using_calendar_constants(self):
+        import calendar
+
+        self.assertEqual(calendar.Month(10), calendar.OCTOBER)
+
+    @unittest.skipUnless(sys.platform.startswith("win"), "Requires Windows")
+    def test_windows_support(self):
+        from ctypes import WinDLL, windll
+
+        self.assertIsInstance(windll.kernel32, WinDLL)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+### Creating Subtests
+
+`unittest` allows you to distinguish between similar tests using the `subTest()` context manager.  This method returns a context manager that executes the enclosed code block as a subtest. You can use this context manger to provide multiple input values for your tests.
+
+The below code is an example of what makes sense to re-factor using `subTest()`
+
+We are testing the basic function
+
+```python
+def is_even(number):
+    return number % 2 == 0
+```
+
+Without using `subTest()`
+
+```python
+import unittest
+
+from even import is_even
+
+class TestIsEven(unittest.TestCase):
+    def test_even_number(self):
+        self.assertEqual(is_even(2), True)
+
+    def test_odd_number(self):
+        self.assertEqual(is_even(3), False)
+
+    def test_negative_even_number(self):
+        self.assertEqual(is_even(-2), True)
+
+    def test_negative_odd_number(self):
+        self.assertEqual(is_even(-3), False)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+Refactored to use `subTest()` and expanded with additional test inputs.
+
+```python
+import unittest
+
+from even import is_even
+
+class TestIsEven(unittest.TestCase):
+    def test_even_number(self):
+        for number in [2, 4, 6, -8, -10, -12]:
+            with self.subTest(number=number):
+                self.assertEqual(is_even(number), True)
+
+    def test_odd_number(self):
+        for number in [1, 3, 5, -7, -9, -11]:
+            with self.subTest(number=number):
+                self.assertEqual(is_even(number), False)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+## Exploring the Available Assert Methods
+
+### Comparing Values
+
+| Method                 | Comparison         |
+| ---------------------- | ------------------ |
+| `.assertEqual(a, b)`   | `a == b`           |
+| `.assertNotEual(a, b)` | `a != b`           |
+| `.assertTrue(x)`       | `bool(x) is True`  |
+| `.assertFalse`         | `bool(x) is False` |
+
+***Note:*** A test comparison such as `.assertEuqals(is_prime(17), True)` is valid, but `.assertTrue()` can better communicate the tests intention.
+
+### Comparing Objects by Their Identity
+
+| Method                | Comparison      |
+| --------------------- | --------------- |
+| `.assertIs(a, b)`     | `a is b`        |
+| `.assertIsNot(a, b)`  | `a is not b`    |
+| `.assertIsNone(x)`    | `x is None`     |
+| `.assertIsNotNone(x)` | `x is not None` |
+Example below is an illustration of testing object identity.
+
+```python
+import unittest
+
+class TestListIdentity(unittest.TestCase):
+    def test_list_aliases(self):
+        a = ["Python", "unittest"]
+        b = a
+        self.assertIs(a, b)
+
+    def test_list_objects(self):
+        a = ["Python", "unittest"]
+        b = ["Python", "unittest"]
+        self.assertIsNot(a, b)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+### Comparing Collections
+
+#TODO this is a good place to link to where you cover these topics
+
+As a reminder collections are lists, tuples, strings, dictionaries and sets
+
+| Method                        | Comparison                   |
+| ----------------------------- | ---------------------------- |
+| `.assertSequenceEqual(a, b)`  | Equality of two sequences    |
+| `.assertMultiLineEqual(a, b)` | Equality of two strings      |
+| `.assertListEqual(a, b)`      | Equality of two lists        |
+| `.assertTupleEqual(a, b)`     | Equality of two tuples       |
+| `.assertDictEqual(a, b)`      | Equality of two dictionaries |
+| `.assertSetEqual(a, b)`       | Equality of two sets         |
+
+***Note:*** The `.assertEqual()` method implicitly calls the specialized methods in the table above; so in most cases you won't need to call these methods directly. You can use these to add clarity to your tests.
+
+Example below:
+
+```python
+import unittest
+
+class TestCollections(unittest.TestCase):
+    def test_sequence_objects(self):
+        a = ("H", "e", "l", "l", "o")
+        b = "Hello"
+        self.assertSequenceEqual(a, b)
+
+    def test_string_objects(self):
+        a = "Hello"
+        b = "Hello"
+        self. assertMultiLineEqual(a, b)
+
+    def test_list_objects(self):
+        a = [1, 2, 3, 4, 5]
+        b = [1, 2, 3, 4, 5]
+        self.assertListEqual(a, b)
+
+    def test_tuple_objects(self):
+        a = ("Jane", 25, "New York")
+        b = ("Jane", 25, "New York")
+        self.assertTupleEqual(a, b)
+
+    def test_dictionary_objects(self):
+        a = {"framework": "unittest", "language": "Python"}
+        b = {"language": "Python", "framework": "unittest"}
+        self.assertDictEqual(a, b)
+
+    def test_set_objects(self):
+        a = {1, 2, 4, 3, 5}
+        b = {1, 5, 3, 4, 2}
+        self.assertSetEqual(a, b)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+### Running Membership Tests
+
+| Method               | Check        |
+| -------------------- | ------------ |
+| `.assertIn(a, b)`    | `a in b`     |
+| `.assertNotIn(a, b)` | `a not in b` |
+
+```python
+import unittest
+
+class TestMembership(unittest.TestCase):
+    def test_value_in_collection(self):
+        a = 1
+        b = [1, 2, 3, 4, 5]
+        self.assertIn(a, b)
+
+    def test_value_not_in_collection(self):
+        a = 10
+        b = [1, 2, 3, 4, 5]
+        self.assertNotIn(a, b)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+### Checking for an Objects Type
+
+| Method                       | Comparison             |
+| ---------------------------- | ---------------------- |
+| `.assertIsInstance(a, b)`    | `isinstance(a, b)`     |
+| `.assertNotIsInstance(a, b)` | `not isinstance(a, b)` |
+
+### Testing for Exceptions
+
+| Method                                           | Check                            |
+| ------------------------------------------------ | -------------------------------- |
+| `.assertRaises(exc, fun, *args, **kwds)`         | `fun (*args, **kwds) raises exc` |
+| `.assertRaisesRegex(exc, r, fun, *args, **kwds)` | `fun (*args, **kwds) raises exc` |
+As an example we test this `is_prime()` function.
+
+```python
+from math import sqrt
+
+def is_prime(number):
+    if not isinstance(number, int):
+        raise TypeError(
+            f"integer number expected, got {type(number).__name__}"
+        )
+    if number < 2:
+        raise ValueError(f"integer above 1 expected, got {number}")
+    for candidate in range(2, int(sqrt(number)) + 1):
+        if number % candidate == 0:
+            return False
+    return True
+```
+
+```python
+import unittest
+
+from prime_v2 import is_prime
+
+class TestIsPrime(unittest.TestCase):
+    def test_prime_number(self):
+        self.assertTrue(is_prime(17))
+
+    def test_non_prime_number(self):
+        self.assertFalse(is_prime(10))
+
+    def test_invalid_type_float(self):
+        with self.assertRaises(TypeError):
+            is_prime(4.5)
+
+    def test_invalid_type_str(self):
+        with self.assertRaises(TypeError):
+            is_prime("5")
+
+    def test_zero_and_one(self):
+        with self.assertRaises(ValueError):
+            is_prime(0)
+        with self.assertRaises(ValueError):
+            is_prime(1)
+
+    def test_negative_number(self):
+        with self.assertRaises(ValueError):
+            is_prime(-1)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+The `TestCase` class also provides some additional assert methods that help you with `warnings` and logs. 
+
+| Method                                      | Check                                                          |
+| ------------------------------------------- | -------------------------------------------------------------- |
+| `.assertWarns(warn, fun, *args, **kwds)`    | fun(*args, **kwds) raises warn                                 |
+| `.assertWarns(warn, r, fun, *args, **kwds)` | fun(*args, **kwds) raises warn and the message matches regex r |
+| `.assertLogs(logger, level)`                | The `with` block logs on logger with minimum level             |
+| `.assertNoLogs(logger, level)`              | The `with` block does not log on logger with minimum level     |
+
+### Using Custom Assert Methods
+
+You can create your own assert methods as well. To do this, you can subclass the TestCase and extend the class with new assertion methods.
+
+In the example below we add an assertion that all values in a list are integers.
+
+```python
+import unittest
+
+class CustomTestCase(unittest.TestCase):
+    def assertAllIntegers(self, values):
+        for value in values:
+            self.assertIsInstance(
+                value,
+                int,
+            )
+```
+
+Below we use our custom assertion
+
+```python
+import unittest
+
+class CustomTestCase(unittest.TestCase):
+    # ...
+
+class TestIntegerList(CustomTestCase):
+    def test_values_are_integers(self):
+        integers_list = [1, 2, 3, 4, 5]
+        self.assertAllIntegers(integers_list)
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+## Using `unittest` From the Command Line
+
+Using command line you can run tests directly from modules, classes, and from individual test methods.
+
+```shell
+$ python -m unittest test_module1 test_module2
+$ python -m unittest test_module.TestCase
+$ python -m unittest test_module.TestCase.test_method
+```
+
+Note that for these commands to work, the target module must be in the import path of your current Python environment. To avoid this issue you can specify the path to the module. `python -m unittest test_age.py` (you can also use the `python -m unittest` shortcut for this behaviour)
+
+### Discovering Tests Automatically
+
+The test loader can inspect each module in a given directory looking for classes derived from `TestCase`. You can trigger this behavior with `python -m unittest discover`.
+
+Some command line options to the `discover` sub command are:
+
+| Option                          | Description                                               |
+| ------------------------------- | --------------------------------------------------------- |
+| `-s` or `--start-directory`     | Specify the directory where your tests reside             |
+| `-v` or `--verbose`             | Produce verbose output                                    |
+| `-p` or `--pattern`             | Allows for using glob patterns and defaults to `test*.py` |
+| `-t` or `--top-level-directory` | Defines the top level directory of a project              |
+### The `unittest` cli itself has a number of options:
+
+| Option               | Description                                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `-v`                 | Shows more verbose output                                                                                                   |
+| `-b` or `--buffer`   | Buffers the standard output and error streams during the test execution                                                     |
+| `-c` or `--catch`    | Waits for the current test to run and reports all the results up to the point `^Ctrl + C` is pressed during test execution. |
+| `-f` or `--failfast` | Stops the test run on the first error of failure                                                                            |
+| `-k`                 | Only runs test methods and classes that match the patter or substing                                                        |
+| `--locals`           | Show local variables in tracebacks                                                                                          |
+| `--duration N`       | Shows the N slowest test cases (N=0 for all)                                                                                |
+
+## Grouping Your Tests With the `TestSuite` Class
+
+The `TestSuite` class allows you to create groups of tests and run them selectively. This can be useful for:
+
+* Organizing tests into logical groups.
+* Break up tests into levels such as unit tests, integration tests, and system tests.
+* Group tests by platform such as Linux, macOS
+
+For example we have the below program.
+
+```python
+import math
+from collections import Counter
+
+def add(x, y):
+    return x + y
+
+def subtract(x, y):
+    return x - y
+
+def multiply(x, y):
+    return x * y
+
+def divide(x, y):
+    if y == 0:
+        raise ZeroDivisionError("Cannot divide by zero.")
+    return x / y
+
+def mean(data):
+    return sum(data) / len(data)
+
+def median(data):
+    n = len(data)
+    index = n // 2
+    if n % 2:
+        return sorted(data)[index]
+    return sum(sorted(data)[index - 1 : index + 1]) / 2
+
+def mode(data):
+    c = Counter(data)
+    return [k for k, v in c.items() if v == c.most_common(1)[0][1]]
+```
+
+In this code we would need to test basic arithmetic operations, and other statistical operations. Below is a test file not using `TestSuite()`
+
+```python
+# test_calculations.py
+import unittest
+
+from calculations import (
+    add,
+    divide,
+    mean,
+    median,
+    mode,
+    multiply,
+    subtract,
+)
+
+class TestArithmeticOperations(unittest.TestCase):
+    def test_add(self):
+        self.assertEqual(add(10, 5), 15)
+        self.assertEqual(add(-1, 1), 0)
+
+    def test_subtract(self):
+        self.assertEqual(subtract(10, 5), 5)
+        self.assertEqual(subtract(-1, 1), -2)
+
+    def test_multiply(self):
+        self.assertEqual(multiply(10, 5), 50)
+        self.assertEqual(multiply(-1, 1), -1)
+
+    def test_divide(self):
+        self.assertEqual(divide(10, 5), 2)
+        self.assertEqual(divide(-1, 1), -1)
+        with self.assertRaises(ZeroDivisionError):
+            divide(10, 0)
+
+class TestStatisticalOperations(unittest.TestCase):
+    def test_mean(self):
+        self.assertEqual(mean([1, 2, 3, 4, 5, 6]), 3.5)
+
+    def test_median_odd(self):
+        self.assertEqual(median([1, 3, 3, 6, 7, 8, 9]), 6)
+
+    def test_median_even(self):
+        self.assertEqual(median([1, 2, 3, 4, 5, 6, 8, 9]), 4.5)
+
+    def test_median_unsorted(self):
+        self.assertEqual(median([7, 1, 3, 3, 2, 6]), 3)
+
+    def test_mode_single(self):
+        self.assertEqual(mode([1, 2, 2, 3, 4, 4, 4, 5]), [4])
+
+    def test_mode_multiple(self):
+        self.assertEqual(set(mode([1, 1, 2, 3, 4, 4, 5, 5])), {1, 4, 5})
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Creating Test Suites With the `TestSuite()` Constructor
+
+The `TestSuite` class constructor takes the `tests` argument that must be an iterable of tests or other test suites. Thus our test suite code would look like:
+
+```python
+# ...
+
+def make_suite():
+    arithmetic_tests = [
+        TestArithmeticOperations("test_add"),
+        TestArithmeticOperations("test_subtract"),
+        TestArithmeticOperations("test_multiply"),
+        TestArithmeticOperations("test_divide"),
+    ]
+    return unittest.TestSuite(tests=arithmetic_tests)
+
+if __name__ == "__main__":
+    suite = make_suite()
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)
+```
+
+To run the suite, you create a [`TextTestRunner`](https://docs.python.org/3/library/unittest.html#unittest.TextTestRunner) and pass the suite to its `.run()` method. Running this file will give you output similar to that below. You wind up running just the test in the test suite, skipping the other tests in `test_calculations.py` example above.
+
+```shell
+$ python test_calculations.py
+test_add (__main__.TestArithmeticOperations.test_add) ... ok
+test_subtract (__main__.TestArithmeticOperations.test_subtract) ... ok
+test_multiply (__main__.TestArithmeticOperations.test_multiply) ... ok
+test_divide (__main__.TestArithmeticOperations.test_divide) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+```
+
+### Adding Tests to a Suite `.addTest()` and `.addTests()`
+
+```python
+# ...
+
+def make_suite():
+    arithmetic_suite = unittest.TestSuite()
+    arithmetic_suite.addTest(TestArithmeticOperations("test_add"))
+    arithmetic_suite.addTest(TestArithmeticOperations("test_subtract"))
+    arithmetic_suite.addTest(TestArithmeticOperations("test_multiply"))
+    arithmetic_suite.addTest(TestArithmeticOperations("test_divide"))
+    return arithmetic_suite
+
+if __name__ == "__main__":
+    suite = make_suite()
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)
+```
+
+```python
+# ...
+
+def make_suite():
+    statistical_tests = [
+        TestStatisticalOperations("test_mean"),
+        TestStatisticalOperations("test_median_odd"),
+        TestStatisticalOperations("test_median_even"),
+        TestStatisticalOperations("test_median_unsorted"),
+        TestStatisticalOperations("test_mode_single"),
+        TestStatisticalOperations("test_mode_multiple"),
+    ]
+    statistical_suite = unittest.TestSuite()
+    statistical_suite.addTests(statistical_tests)
+
+    return statistical_suite
+
+if __name__ == "__main__":
+    suite = make_suite()
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)
+```
+
+### Creating Suites With the `load_tests() Function`
+
+The `load_tests()` function is a hook that `unittest` provides for customizing test loading and suite creations. The function takes three mandatory arguments with the below signature:
+
+```Python
+def load_tests(loader, standard_tests, pattern):
+```
+
+The `loader` argument will hold a test loader, which normally is an instance of [`TestLoader`](https://docs.python.org/3/library/unittest.html#unittest.TestLoader) When you define `load_tets()` in a module, the `standard_tests` argument will receive the tests that are loaded from the module by default. When you define the function in a package the `standard_tests` will get the tests loaded from the package's `__init__.py` file. Finally the `pattern` argument is a blog pattern that you can use when discovering the tests.
+
+When you call `unittest.main()` in a test module, the `load_tests()` function defined in the module gets called automatically, and `unittest` takes care of passing in the required arguments. This behavior allows you to build a test suite with minimal boilerplate code.
+
+Here’s an example of how to create two test suites. One for the arithmetic tests and another for the statistical tests:
+
+```python
+# ...
+
+def load_tests(loader, standard_tests, pattern):
+    suite = unittest.TestSuite()
+    suite.addTests(loader.loadTestsFromTestCase(TestArithmeticOperations))
+    suite.addTests(loader.loadTestsFromTestCase(TestStatisticalOperations))
+    return suite
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+We are not using `_standard_tests` in this example. This argument can be useful for when test packages where you’d like to add tests to those found in `__init__.py`and build a test suite from there. The `pattern` argument is also for loading tests from packages rather than from modules.
+
+## Creating Test Fixtures
+
+A fixture is a preparation that you perform before and after running one or more tests. The preparation before a test is known as **setup**, while the tasks you perform after the test run is called **teardown**. In `unittest` you create setup and teardown fixtures in your test cases by overriding the following methods in your `TestClass` subclasses.
+
+| Method             | Description                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `.setUP()`         | An instance method that `unittest` calls before running each test method in a test case class |
+| `.tearDown()`      | An instance method that `unittest` calls after running each test method in a test case class  |
+| `.setUpClass()`    | A class method that `unittest` calls before running the tests in a test case class            |
+| `.tearDownClass()` | A class method that `unittest` calls after running the tests in a test case class.            |
+
+***Note:*** The last two methods are class methods, which means you need to use the `@classmethod` decorator to create them. These methods only take the current test class as an argument. Remember that they run only once per class.
+
+```python
+import unittest
+
+class Test(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        ...
+
+    @classmethod
+    def tearDownClass(cls):
+        ...
+```
+
+To create module-level fixtures, you need to use **module-level function** rather than methods on a `TestCase subclass`. The required functions are:
+
+| Function           | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `setUpModule()`    | Runs before all test cases in the containing module |
+| `tearDownModule()` | Runs after all test cases have run                  |
+
+If an exception occurs in the `setUpModue()` function, then none of the tests in the module run, and the `tearDownModule()` function won't run either.
+
+### Test Fixtures
+
+We will test the following implementation of a stack for our examples.
+
+```python
+class Stack:
+    def __init__(self, items=None):
+        self.items = list(items) if items is not None else []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        return self.items.pop()
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __reversed__(self):
+        return reversed(self.items)
+```
+
+To test the above code you have two options.
+
+1. You can create a new and independent instance of Stack for every test.
+2. You can create a single instance of the class for all the tests.
+
+The second option is less repetitive and what fixtures are intended for.
+
+```python
+import unittest
+
+from stack import Stack
+
+class TestStack(unittest.TestCase):
+    def setUp(self):
+        self.stack = Stack()
+
+    def tearDown(self):
+        del self.stack
+
+    def test_push(self):
+        self.stack.push(1)
+        self.assertEqual(self.stack.items, [1])
+
+    def test_pop(self):
+        self.stack.push(2)
+        item = self.stack.pop()
+        self.assertEqual(item, 2)
+
+    def test_len(self):
+        self.stack.push(3)
+        self.stack.push(4)
+        self.assertEqual(len(self.stack), 2)
+
+    def test_iter(self):
+        items = [5, 6, 7]
+        for item in items:
+            self.stack.push(item)
+        for stack_item, test_item in zip(self.stack, items):
+            self.assertEqual(stack_item, test_item)
+
+    def test_reversed(self):
+        items = [5, 6, 7]
+        for item in items:
+            self.stack.push(item)
+        reversed_stack = reversed(self.stack)
+        self.assertEqual(list(reversed_stack), [7, 6, 5])
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+### Class Level Fixtures
+
+If you use `.setUpClass()` and `.tearDownClass()` class methods, then you can create class-level fixtures. This type of fixture only runs once per test case class. The `setUPClass()` method runs before the test methods, and `.terDownClass()` runs after all the test methods have run. This behavior is known as a **shared fixture** because all the test methods depend on a single setup and teardown run. ***Note:*** shared fixtures break test isolation.
+
+To demonstrate we will test the below Employee class. We are using `__slots__` because we plan to have a lot of instances of this class and want to save on memory.
+
+```python
+class Employee:
+    __slots__ = ["name", "age", "job", "salary"]
+
+    def __init__(self, name, age, job, salary):
+        self.name = name
+        self.age = age
+        self.job = job
+        self.salary = salary
+
+    def profile(self):
+        for attr in self.__slots__:
+            print(f"{attr.capitalize()}: {getattr(self, attr)}")
+        print()
+```
+
+The input data lives in a CSV with content similar to below.
+
+```text
+name,age,job,salary
+Alice,25,Engineer,50000
+Bob,30,Analyst,60000
+Jane,35,Manager,80000
+John,40,CEO,100000
+...
+```
+
+We also have a function that reads this file and returns a list of employees.
+
+```python
+import csv
+
+class Employee:
+    # ...
+
+def from_csv_file(file_path):
+    with open(file_path) as file:
+        reader = csv.DictReader(file)
+        employees = []
+        for row in reader:
+            employees.append(
+                Employee(
+                    name=row["name"],
+                    age=int(row["age"]),
+                    job=row["job"],
+                    salary=float(row["salary"]),
+                )
+            )
+        return employees
+```
+
+And the test code would look like.
+
+```python
+import os
+import unittest
+from tempfile import NamedTemporaryFile
+
+from employee import from_csv_file
+
+SAMPLE_CSV = """name,age,job,salary
+Alice,25,Engineer,50000
+Bob,30,Analyst,60000
+Jane,35,Manager,80000
+John,40,CEO,100000
+"""
+
+class TestFromCsvFile(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp_file = NamedTemporaryFile(
+            delete=False,
+            mode="w",
+            newline="",
+            suffix=".csv",
+        )
+        cls.temp_file_name = cls.temp_file.name
+        cls.temp_file.write(SAMPLE_CSV)
+        cls.temp_file.close()
+        cls.employees = from_csv_file(cls.temp_file_name)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.remove(cls.temp_file_name)
+
+    def test_from_csv_file_total_employees(self):
+        self.assertEqual(len(self.employees), 4)
+
+    def test_from_csv_file_employee_attributes(self):
+        self.assertEqual(self.employees[0].name, "Alice")
+        self.assertEqual(self.employees[0].age, 25)
+        self.assertEqual(self.employees[0].job, "Engineer")
+        self.assertEqual(self.employees[0].salary, 50000.0)
+
+    def test_from_csv_file_employee_name(self):
+        self.assertEqual(self.employees[0].name, "Alice")
+        self.assertEqual(self.employees[1].name, "Bob")
+        self.assertEqual(self.employees[2].name, "Jane")
+        self.assertEqual(self.employees[3].name, "John")
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+To create the temporary file we are using [NamedTemporaryFile](https://docs.python.org/3/library/tempfile.html#tempfile.NamedTemporaryFile) from the [tempfile module](https://docs.python.org/3/library/tempfile.html#module-tempfile) 
+
+### Module-Level Fixtures
+
+To make module level fixtures you need to define the following functions at the module level.
+
+```python
+def setUpModule():
+    ...
+
+def tearDownModule():
+    ...
+```
+
+These fixtures run once per module. The setup fixture runs before all the test cases in the module, and the teardown fixture runs after all the test cases in the module have run. If an exception happens in the `setUpModule()` function, then none of the tests in the module will run, and the `tearDownModule()` won’t run either. If the raised exception is a [`SkipTest`](https://docs.python.org/3/library/unittest.html#unittest.SkipTest)exception, then the module will be reported as skipped instead of an error.
+
+Module-level fixtures are useful when you have several `TestCase` subclasses in a module, and some of them will benefit from a common setup and teardown logic.
+
+The classic example is a test module with a few test cases that check for database-related functionalities. These tests may need an active connection to the database, which you can create in the `setUpModule()` function and close in the `tearDownModule()` function.
+## Debugging Failing Tests
+
+## Testing With Fake Objects: `unittest.mock`
+
+## Conclusion
 
 
