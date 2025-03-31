@@ -2335,10 +2335,289 @@ These fixtures run once per module. The setup fixture runs before all the test c
 Module-level fixtures are useful when you have several `TestCase` subclasses in a module, and some of them will benefit from a common setup and teardown logic.
 
 The classic example is a test module with a few test cases that check for database-related functionalities. These tests may need an active connection to the database, which you can create in the `setUpModule()` function and close in the `tearDownModule()` function.
-## Debugging Failing Tests
 
 ## Testing With Fake Objects: `unittest.mock`
 
-## Conclusion
+The `unittest.mock` module provides two base classes that allow you to mock, or simulate external resources, such as files, connections and so on:
+
+1. `Mock` is a generic mock object
+2. `MagicMock` is the same as Mock, but includes magic methods
+
+For an example of using a mock object we will test the following code. There is no easy way to test this code because it is dependent on the current day and that can vary based on when the test is being run.
+
+```Python
+# weekday.py
+import datetime
+
+def is_weekday():
+    today = datetime.date.today()
+    return 0 <= today.weekday() < 5
+```
+
+To test this code with a mock we would do something like:
+
+We are using the `@patch` decorator to create a Mock object around the `datetime` module. This is patching the `datetime` module that you imported in your `weekday` module. This Mock object goes to the `mock_datetime` argument of the underlying test method. We then create fake return values for `.today()` in each test method. 
+
+```python
+# test_weekend.py
+import datetime
+import unittest
+from unittest.mock import patch
+
+import weekday
+
+class TestWeekday(unittest.TestCase):
+    @patch("weekday.datetime")
+    def test_is_weekday(self, mock_datetime):
+        mock_datetime.date.today.return_value = datetime.date(2024, 4, 4)
+        self.assertTrue(weekday.is_weekday())
+
+    @patch("weekday.datetime")
+    def test_is_weekend(self, mock_datetime):
+        mock_datetime.date.today.return_value = datetime.date(2024, 4, 6)
+        self.assertFalse(weekday.is_weekday())
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+```
+
+# Improve Your Tests With the Python Mock Object Library
+
+## What is Mocking?
+
+Python mock objects provide deeper insight into your code:
+
+* When functions were called
+* How many times they were called
+* What arguments were passed
+
+The `Mock` class allows you to imitate real objects, and the `patch()` function lets you temporarily substitute mocks for real objects in your tests.
+
+## The Python Mock Library
+
+Provides the `Mock()` class and the `patch()` method. You can use `path()` as either a decorator or a context manager giving you control over the scope in which the object is mocked. Once the designated scope exits, `path()` will clean up your code by replacing the mocked objects wit their original counterparts.
+
+## The Mock Object
+
+First you instantiate a Mock Instance as in the example below:
+
+```python
+>>> from unittest.mock import Mock
+>>> mock = Mock()
+>>> mock
+<Mock id='4561344720'>
+```
+
+Once instantiated you can substitute an object in your code with your new Mock by passing it as an argument to a function or by redefining another object:
+
+```python
+# Pass mock as an argument to do_something()
+do_something(mock)
+
+# Patch the json library
+json = mock
+```
+
+When you substitute an object in your code with Mock it must look like the real object its replacing. For example if you are mocking the `json` library and your program calls `dumps()`, then your Python mock object must also contain `dumps()` We cover how this happens in the next section.
+
+### Understanding Lazy Attributes and Methods
+
+A `Mock` must simulate any object that it replaces. to achieve such flexibility, it creates its [attributes](https://docs.python.org/3/library/unittest.mock.html#quick-guide) when you access them.
+
+```python
+>>> mock.some_attribute
+<Mock name='mock.some_attribute' id='4394778696'>
+>>> mock.do_something()
+<Mock name='mock.do_something()' id='4394778920'>
+```
+
+Since Mock can create arbitrary attributes on the fly, its able to replace any object:
+
+```python
+>>> json = Mock()
+>>> json.dumps()
+<Mock name='mock.dumps()' id='4392249776'>
+```
+
+The capability of Mock to recursively define other mocks allows for you to use mocks in complex situations:
+
+```python
+>>> json = Mock()
+>>> json.loads('{"k": "v"}').get("k")
+<Mock name='mock.loads().get()' id='4379599424'>
+```
+
+### Leveraging Assertions and Inspection
+
+Mock instances store data on how you used them. They allow you to see if you called a method, and how you called a method. There are two ways to use this information.
+
+1. Assertions - allow you to assert that you used an object as expected
+2. Inspection - allows you to view special attributes to understand how your application used an object.
+
+```python
+>>> from unittest.mock import Mock
+>>> json = Mock()
+
+>>> json.loads('{"key": "value"}')
+<Mock name='mock.loads()' id='4550144184'>
+
+>>> json.loads.assert_called()
+>>> json.loads.assert_called_once()
+>>> json.loads.assert_called_with('{"key": "value"}')
+>>> json.loads.assert_called_once_with('{"key": "value"}')
+>>> json.loads('{"key": "value"}')
+<Mock name='mock.loads()' id='4550144184'>
+>>> # Below fails because at this point we called .loads() two times
+>>> json.loads.assert_called_once()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 918, in assert_called_once
+    raise AssertionError(msg)
+AssertionError: Expected 'loads' to have been called once. Called 2 times.
+Calls: [call('{"key": "value"}'), call('{"key": "value"}')].
+```
+
+A mock object comes with assertion methods such as:
+
+* `.assert_called()` - Ensues that the mocked method was called.
+* `.assert_called_once()` - Checks that you called the method exactly one time.
+* `.assert_not_called()` - Ensures that you never called the mocked method.
+
+It also has methods that let you inspect arguments passed to the mocked method. To pass these assertions, you must call the mocked method with the same arguments that you pass to the actual method. This approach can break when you specify the arguments differently in both calls, even if you provide the same argument.
+
+* `.assert_called_with(*args, **kwargs)` - Ensures that you called the mocked method at least once with the specified arguments.
+* `.assert_called_once_with(*args, **kwargs)` - Checks that you called the mocked method exactly one time with the specified arguments.
+
+```python
+>>> json = Mock()
+>>> json.loads(s='{"key": "value"}')
+<Mock name='mock.loads()' id='4421942864'>
+
+>>> json.loads.assert_called_with('{"key": "value"}')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 939, in assert_called_with
+    raise AssertionError(_error_message()) from cause
+AssertionError: expected call not found.
+Expected: loads('{"key": "value"}')
+Actual: loads(s='{"key": "value"}')
+
+>>> json.loads.assert_called_with(s='{"key": "value"}')
+```
+
+You are also able to introspect you Mock by accessing special attributes. You can use these special attributes to test that your objects behave as you intended
+
+```python
+>>> from unittest.mock import Mock
+
+>>> json = Mock()
+>>> json.loads('{"key": "value"}')
+<Mock name='mock.loads()' id='4391026640'>
+>>> # Number of times you called loads():
+>>> json.loads.call_count
+1
+
+>>> # The last loads() call:
+>>> json.loads.call_args
+call('{"key": "value"}')
+
+>>> # List of loads() calls:
+>>> json.loads.call_args_list
+[call('{"key": "value"}')]
+
+>>> # List of calls to json's methods (recursively):
+>>> json.method_calls
+[call.loads('{"key": "value"}')]
+```
+
+### Managing a Mock's Return Value
+
+Mocks also let you control a functions [return value](https://docs.python.org/3/library/unittest.mock.html#unittest.mock.Mock.return_value).
+
+For example, if the below test code runs on weekend it will fail the test.
+
+```python
+# holidays.py
+from datetime import datetime
+
+def is_weekday():
+    today = datetime.today()
+    # Python's datetime library treats Monday as 0 and Sunday as 6
+    return (0 <= today.weekday() < 5)
+
+# Test if today is a weekday
+assert is_weekday()
+```
+
+We work around this with:
+
+```python
+from datetime import datetime
+from unittest.mock import Mock
+
+# Save a couple of test days
+wednesday = datetime(year=2025, month=1, day=1)
+sunday = datetime(year=2025, month=1, day=5)
+
+# Mock datetime to control today's date
+datetime = Mock()
+
+def is_weekday():
+    today = datetime.today()
+    # Python's datetime library treats Monday as 0 and Sunday as 6
+    return (0 <= today.weekday() < 5)
+
+# Mock .today() to return Wednesday
+datetime.today.return_value = wednesday
+# Test Wednesday is a weekday
+assert is_weekday()
+
+# Mock .today() to return Sunday
+datetime.today.return_value = sunday
+# Test Sunday is not a weekday
+assert not is_weekday()
+```
+
+While this is a good example there is a library for mocking `datetime` called [`freezegun`](https://github.com/spulec/freezegun)
+
+Below is an example of Mocking libraries in a separate test file. The example below ***DOES NOT WORK*** because when you import a module in another module, the imported names are bound to that module's namespace. Mocking `datetime` in your test file doesn't affect `dateime` in `is_weekday()` because `holidays.py` has already imported the real `datetime` module.
+
+```python
+# test_holidays.py
+from datetime import datetime
+from unittest.mock import Mock
+
+from holidays import is_weekday
+
+# Save a couple of test days
+wednesday = datetime(year=2025, month=1, day=1)
+sunday = datetime(year=2025, month=1, day=5)
+
+# Mock datetime to control today's date
+datetime = Mock()
+
+# Mock .today() to return Wednesday
+datetime.today.return_value = wednesday
+# Test Wednesday is a weekday
+assert is_weekday()
+
+# Mock .today() to return Sunday
+datetime.today.return_value = sunday
+# Test Sunday is not a weekday
+assert not is_weekday()
+```
+
+To correctly mock `datetime` in `holidays.py`, you should patch `datetime` in the namespace where it is used. The `unittest.mock()` library's `patch()` function is useful for this purpose. We will cover this technique in the next section but for now we will continue testing in the same file.
+
+### Managing a Mock's Side Effects
+
+
+
+## The `patch()` Function
+
+## Common Mocking Problems
+
+## Avoiding Common Problems Using Specifications
+
 
 
