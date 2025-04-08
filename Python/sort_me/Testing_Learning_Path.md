@@ -2611,13 +2611,526 @@ To correctly mock `datetime` in `holidays.py`, you should patch `datetime` in th
 
 ### Managing a Mock's Side Effects
 
+`.side_effect` defines what happens when you call the mocked function.
 
+```python
+# holidays.py
+
+import unittest
+from requests.exceptions import Timeout
+from unittest.mock import Mock
+
+# Mock requests to control its behavior
+requests = Mock()
+
+def get_holidays():
+    r = requests.get("http://localhost/api/holidays")
+    if r.status_code == 200:
+        return r.json()
+    return None
+
+class TestHolidays(unittest.TestCase):
+    def test_get_holidays_timeout(self):
+        # Test a connection timeout
+        requests.get.side_effect = Timeout
+        with self.assertRaises(Timeout):
+            get_holidays()
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Another option is to set `.side_effect` to a function that Mock will invoke when you call your mocked method. The mock shares the arguments and return value of the `.side_effect` function:
+
+```python
+# holidays.py
+import requests
+import unittest
+from unittest.mock import Mock
+
+# Mock requests to control its behavior
+requests = Mock()
+
+def get_holidays():
+    r = requests.get("http://localhost/api/holidays")
+    if r.status_code == 200:
+        return r.json()
+    return None
+
+class TestHolidays(unittest.TestCase):
+    def log_request(self, url):
+        # Log a fake request for test output purposes
+        print(f"Making a request to {url}.")
+        print("Request received!")
+
+        # Create a new Mock to imitate a Response
+        response_mock = Mock()
+        response_mock.status_code = 200
+        response_mock.json.return_value = {
+            "12/25": "Christmas",
+            "7/4": "Independence Day",
+        }
+        return response_mock
+
+    def test_get_holidays_logging(self):
+        # Test a successful, logged request
+        requests.get.side_effect = self.log_request
+        assert get_holidays()["12/25"] == "Christmas"
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+`.side_effect` can also be an iterable. The iterable must consist of return values, exceptions or a mixture of both. The iterable will produce its next value every time you call your mocked method.
+
+In example below we test that a retry after a `Timeout` returns a successful response.
+
+```python
+import unittest
+from requests.exceptions import Timeout
+from unittest.mock import Mock
+
+# Mock requests to control its behavior
+requests = Mock()
+
+def get_holidays():
+    r = requests.get("http://localhost/api/holidays")
+    if r.status_code == 200:
+        return r.json()
+    return None
+
+class TestHolidays(unittest.TestCase):
+    def test_get_holidays_retry(self):
+        # Create a new Mock to imitate a Response
+        response_mock = Mock()
+        response_mock.status_code = 200
+        response_mock.json.return_value = {
+            "12/25": "Christmas",
+            "7/4": "Independence Day",
+        }
+        # Set the side effect of .get()
+        requests.get.side_effect = [Timeout, response_mock]
+        # Test that the first request raises a Timeout
+        with self.assertRaises(Timeout):
+            get_holidays()
+        # Now retry, expecting a successful response
+        assert get_holidays()["12/25"] == "Christmas"
+        # Finally, assert .get() was called twice
+        assert requests.get.call_count == 2
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+You can set `.return_value` and `.side_effect` on a Mock directly but there is a better way to configure these settings:
+
+### Configuring Your Mock
+
+You can configure a Mock to set up some of the object's behaviors. Some configurable members include `.side_effect`, `.return_value`, and `.name`. You an configure a Mock when you [create](https://docs.python.org/3/library/unittest.mock.html#unittest.mock.Mock) one or when you use `.configure_mock()`
+
+Below we are configuring a mock when we create it.
+
+```python
+>>> from unittest.mock import Mock
+
+>>> mock = Mock(side_effect=Exception)
+>>> mock()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 939, in __call__
+    return _mock_self._mock_call(*args, **kwargs)
+  File "/path/to/python/unittest/mock.py", line 995, in _mock_call
+    raise effect
+Exception
+
+>>> mock = Mock(return_value=True)
+>>> mock()
+True
+
+>>> mock = Mock(name="Hello Mock")
+>>> mock
+<Mock name='Hello Mock' id='4424041432'>
+```
+
+***Note:*** if you try to set `.name` on an instance the result may not be what you expect. The `.name` is a common attribute in objects, so Mock doesn't let you set that value on the instance in the same way you can with `.return_value` or `.side_effect`.
+
+```python
+>>> mock = Mock()
+>>> mock.name = "Real Python Mock"
+>>> mock
+<Mock id='4339891024'>
+>>> mock.name
+'Real Python Mock'
+```
+
+You can also configure your mock with `.configure_mock()`
+
+```python
+>>> mock = Mock()
+>>> mock.configure_mock(return_value=True)
+>>> mock()
+True
+```
+
+You can also unpack dictionaries for mock configuration.
+
+```python
+# Verbose Mock shown before
+response_mock = Mock()
+response_mock.json.return_value = {
+    "12/25": "Christmas",
+    "7/4": "Independence Day",
+}
+
+# Concise initialization using a configuration dict
+holidays = {"12/25": "Christmas", "7/4": "Independence Day"}
+response_mock = Mock(**{"json.return_value": holidays})
+```
 
 ## The `patch()` Function
 
+[`patch()`](https://docs.python.org/3/library/unittest.mock.html#patch) looks up an object in a given module and replaces that object with a Mock. Typically you use `patch()` as a decorator or a context manager to provide a scope in which you mock the target object.
+
+### Using `patch()` as a Decorator
+
+If you want to mock an object for the duration of your entire test function, then you can use `patch()` as a function decorator.
+
+Do demonstrate this we will reorganize the `holidays.py` file by putting the logic and tests into separate files.
+
+```python
+# holidays.py
+from datetime import datetime
+
+import requests
+
+def is_weekday():
+    today = datetime.today()
+    # Python's datetime library treats Monday as 0 and Sunday as 6
+    return (0 <= today.weekday() < 5)
+
+def get_holidays():
+    r = requests.get("http://localhost/api/holidays")
+    if r.status_code == 200:
+        return r.json()
+    return None
+```
+
+Before we used Monkey patching which is replacing an object with another one at runtime. Now we will use `patch()` to replace objects within the test file. This means that we need to access the `requests` library in `holidays.py`  from `test_holidays.py`.  We use `@patch` decorator and pass in the target objects path. The target is `"holidays.requests` which consists of the module name and the object.  We also define a new parameter `mock_requests` which `patch()` uses to pass the mocked object into your test. from here you can modify the mock and make assertions as necessary.
+
+***Note:*** The `patch()` function returns and instance of [`MagicMock`](https://docs.python.org/3/library/unittest.mock.html#unittest.mock.MagicMock), which is a `Mock` subclass that implements most magic methods for you such as `.__len__()`, `.__str__()`, and `.__iter__()`, with reasonable defaults.
+
+```python
+# test_holidays.py
+import unittest
+from unittest.mock import patch
+
+from requests.exceptions import Timeout
+
+from holidays import get_holidays
+
+class TestHolidays(unittest.TestCase):
+    @patch("holidays.requests")
+    def test_get_holidays_timeout(self, mock_requests):
+            mock_requests.get.side_effect = Timeout
+            with self.assertRaises(Timeout):
+                get_holidays()
+                mock_requests.get.assert_called_once()
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Using `patch()` as a Context Manager
+
+In some cases it's more readable or more effective to use `patch()` as a context manager. Examples of such scenarios are:
+
+* you only want to mock an object for a part of the test scope.
+* You are already using too many decorator or parameters which hurts your test's readability.
+
+To use `patch()` as a context manager, you use Python's `with` statement. Using this approach, Python will mock the `requests` library in `holidays` only within the context manager. When the test exits the `with` statement, `patch()` will replace the mocked object again with the original.
+
+```python
+import unittest
+from unittest.mock import patch
+
+from requests.exceptions import Timeout
+
+from holidays import get_holidays
+
+class TestHolidays(unittest.TestCase):
+    def test_get_holidays_timeout(self):
+        with patch("holidays.requests") as mock_requests:
+            mock_requests.get.side_effect = Timeout
+            with self.assertRaises(Timeout):
+                get_holidays()
+                mock_requests.get.assert_called_once()
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Patching an Object's Attributes
+
+If you want to mock just one method of an object instead of the entire object, you can do so by using `patch.object()`
+
+For example `.test_get_holidays_timeout()` really only needs to mock `requests.get()` and set its `.side_effect` to `Timeout`.
+
+In this example we mock only `get()` rather than all of `requests`. `object()` takes the same configuration parameters what `patch()` does, but instead of passing the target's path, you provide the target object itself as the first parameter. The second parameter is the attribute of the target object you are trying to mock.
+
+```python
+import unittest
+from unittest.mock import patch
+
+from holidays import get_holidays, requests
+
+class TestHolidays(unittest.TestCase):
+    @patch.object(requests, "get", side_effect=requests.exceptions.Timeout)
+    def test_get_holidays_timeout(self, mock_requests):
+        with self.assertRaises(requests.exceptions.Timeout):
+            get_holidays()
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+You can also use `object()` as a context manager like `patch()`
+
+***Note:*** Besides objects and attributes you can also `patch()` dictionaries with `patch.dict()`. 
+
+### Knowing Where to Patch
+
+A good [rule of thumb](https://docs.python.org/3/library/unittest.mock.html#where-to-patch) is to `patch()` the object where it's looked up. If you use a function is used in local scope you should mock the local function.
+
+```python
+>>> from unittest.mock import patch
+>>> from holidays import is_weekday
+
+>>> with patch("__main__.is_weekday"):
+...     is_weekday()
+...
+<MagicMock name='is_weekday()' id='4502362992'>
+```
+
 ## Common Mocking Problems
 
+### Changes to Object Interfaces and Misspellings
+
+When the interface of an object changes, any tests relying on a `Mock` of that object may become irrelevant. For example, you rename a method but forget that a teast ocks that method and invokes `.assert_not_called()`. After the change `.assert_not_called()` is still True, however the assertion is no longer useful.
+
+ if you misspell `.assert_called()` by instead typing `.asst_called()`, then your test won’t raise an `AssertionError`. This is because you’ve created a new method on the Python mock object named `.asst_called()` instead of evaluating an actual assertion.
+
+### Changes to External Dependencies
+
+If an external dependency you mocked changes your tests will still pass, but production code will fail.
+
 ## Avoiding Common Problems Using Specifications
+
+You can avoid some of the mocking problems by preventing Mock from creating attributes that don't conform to the object they are trying to mock.
+
+When configuring a mock you can pass an object specification tot he `spec` parameter. The `spec` parameter accepts a list of names or rather objects and defines the mock's interface. If you attempt to access an attribute that doesn't belong to the specification, Mock will raise an `AttributeError`
+
+```python
+>>> from unittest.mock import Mock
+
+>>> fake_holidays = Mock(spec=["is_weekday", "get_holidays"])
+
+>>> fake_holidays.is_weekday()
+<Mock name='mock.is_weekday()' id='4569015856'>
+
+>>> fake_holidays.create_event()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 653, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'create_event'
+```
+
+Specifications work the same way if you configure `Mock` with an object:
+
+In the example below `.is_weekday()` method is available to your `fake_holidays` mock because you configured the `Mock` to match the interface of your `holidays` module.
+
+```Python
+>>> from unittest.mock import Mock
+>>> import holidays
+
+>>> fake_holidays = Mock(spec=holidays)
+
+>>> fake_holidays.is_weekday()
+<Mock name='mock.is_weekday()' id='4569435216'>
+
+>>> fake_holidays.create_event()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 653, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'create_event'
+```
+
+One way to implement automatic specification is with `create_autospec()`
+
+```python
+>>> from unittest.mock import create_autospec
+>>> import holidays
+
+>>> fake_holidays = create_autospec(holidays)
+
+>>> fake_holidays.is_weekday()
+<MagicMock name='mock.is_weekday()' id='4579049424'>
+
+>>> fake_holidays.create_event()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/path/to/python/unittest/mock.py", line 653, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'create_event'
+```
+
+If you are using `patch()`, you can set the `autospec` parameter to `True` to achieve the same result.
+
+```python
+>>> from unittest.mock import patch
+>>> import holidays
+
+>>> with patch("__main__.holidays", autospec=True) as fake_holidays:
+...     fake_holidays.is_weekday()
+...     fake_holidays.create_event()
+...
+<MagicMock name='holidays.is_weekday()' id='4579094312'>
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "/path/to/python/unittest/mock.py", line 653, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'create_event'
+```
+
+## Ad-hoc notes from the video section
+
+Below is another example of mocking a call to requests.
+
+```python
+...
+requests = Mock()
+
+def get_holidays():
+	r = requests.get('http://localhost/api/holidays')
+	if r.status_code == 200:
+		return r.json()
+	return None
+
+class TestGetHolidays(unittest.TestCase):
+
+	def log_request(self, url):
+		print(f'Making a request to {url}`)
+		response_mock = Mock()
+		response_mock.status_code = 200
+		response_mock.json.return_value = {
+			'25/12': 'Christmas',
+			'01/01': 'New Years'
+		}
+		return response_mock
+
+	def test_request_with_logging(self):
+		# the side effect inherits the arguments of the `requests` mock
+		requests.get.side_efect = self.log_request
+		assert get_holidays()['25/12'] == 'Christmas'
+```
+
+You can also chain side effects in a list below is a variation of above test where we first get a timeout and then get a normal call.
+
+You can set an iterable of side effects. If you pass in an iterable, it is used to retrieve an iterator which must yield a value on every call. This value can either be an exception instance to be raised, or a value to be returned from the call to the mock ([`DEFAULT`](https://docs.python.org/3/library/unittest.mock.html#unittest.mock.DEFAULT "unittest.mock.DEFAULT") handling is identical to the function case).
+
+below is the example of chaining return values.
+
+```python
+>>> mock = Mock()
+>>> mock.side_effect = [3, 2, 1]
+>>> mock(), mock(), mock()
+(3, 2, 1)
+```
+
+# Effective Python Testing With `pytest`
+
+`pytest` offers some advantages over `unittest` such as less boilerplate code, more readable output and a rich plugin ecosystem.
+
+## How to Install `pytest`
+
+`python -m pip install pytest` naturally a virtual environment here is helpful.
+
+## What Makes `pytest` so Useful?
+
+With `pytest` common tasks require less code and advanced tasks can be achieved with time saving commands and plugins. 
+
+`pytest` can run your existing `unittest` tests out of the box.
+
+### Less Boilerplate Code
+
+`pytest` simplifies things over `unittest` by letting you use normal functions for your tests and the `assert` keyword.
+
+### Nicer Output
+
+The output indicates the status of each test using a syntax similar to `unittest`
+
+*  `.` indicates that test passed.
+* `F` means test failed.
+* `E` means test raised exception.
+
+The test result special characters are shown next to the name of the file they are in.
+
+For failing tests you get a detailed breakdown of the failure.
+
+### Less to Learn
+
+Below are a few examples of using `assert`
+
+```python
+def test_uppercase():
+    assert "loud noises".upper() == "LOUD NOISES"
+
+def test_reversed():
+    assert list(reversed([1, 2, 3, 4])) == [4, 3, 2, 1]
+
+def test_some_primes():
+    assert 37 in {
+        num
+        for num in range(2, 50)
+        if not any(num % div == 0 for div in range(2, num))
+    }
+```
+
+### Easier to Manage State and Dependencies
+
+`pytest` encourages explicit dependency declarations that are still reusable due to [fixtures](https://docs.pytest.org/en/latest/explanation/fixtures.html). `pytest` fixtures are functions that can create data, test doubles, or initialize system state for the test suite. Any test that wants to use a fixtures must explicitly use this fixture function as an argument to the test function, so dependencies are always statue up front.
+
+```python
+import pytest
+
+@pytest.fixture
+def example_fixture():
+    return 1
+
+def test_with_fixture(example_fixture):
+    assert example_fixture == 1
+```
+
+Fixtures can also make use of other fixtures by also declaring them explicitly as dependencies. 
+
+### Easy to Filter Tests
+
+START HERE
+
+## Fixtures: Managing State and Dependencies
+
+## Marks: Categorizing Tests
+
+## Parametrization: Combining Tests
+
+## Duration Reports: Fighting Slow Tests
+
+## Useful pytest Plugins
+
+
+
+
 
 
 

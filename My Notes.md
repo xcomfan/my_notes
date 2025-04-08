@@ -1,9 +1,6 @@
 ---
 Status: WIP
-Last updated on: March 23, 2025
 ---
-[test link](Algorithms/bfs_and_dfs.md)
-
 [Algorithms](Algorithms/Algorithms.md)
 
 [AWS](AWS.md)
