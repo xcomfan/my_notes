@@ -3116,13 +3116,118 @@ Fixtures can also make use of other fixtures by also declaring them explicitly a
 
 ### Easy to Filter Tests
 
-START HERE
+* Name based filtering: `-k` parameter lets you use an expression to match test names to run.
+* Directory scoping: by default `pytest` will run only tests under the current directory.
+* Test categorization: `-m` parameter. `pytest` can include or exclude tests from particular categories that you define.
+
+`pytest` lets you create **marks** (custom labels) for tests. You can use these for granular control of which tests to run.
+
+### Allows Test Parametrization
+
+For the scenario where you are running the same test, but only the inputs are different you may wind up a lot of repetitive code. `unittest` lets you collect several tests into one, but if one test failes its hard to tell which of the set failed. `pytest` uses parameterized tests which allow you to see which test passed or failed individually. 
+
+### Plugin Based Architectures
+
+It lets you use plugins and there is a robust library of them.
 
 ## Fixtures: Managing State and Dependencies
 
+Fixtures are functions that can return a wide range of values. Each test that depends on a fixture must explicitly accept that feature as an argument.
+
+### When to Create Fixtures
+
+You can pull repeated data into a single function marked with `@pytest.fixture`.
+
+```python
+# test_format_data.py
+import pytest
+
+@pytest.fixture
+def example_people_data():
+    return [
+        {
+            "given_name": "Alfonsa",
+            "family_name": "Ruiz",
+            "title": "Senior Software Engineer",
+        },
+        {
+            "given_name": "Sayid",
+            "family_name": "Khan",
+            "title": "Project Manager",
+        },
+    ]
+
+# ...
+```
+
+You can use the above fixture by adding the function reference as an argument to your tests. ***Note:*** you don't call the fixture function; `pytest` takes care of that. You will be able to use the return value of the fixture function as the name of the fixture function.
+
+```python
+# ...
+
+def test_format_data_for_display(example_people_data):
+    assert format_data_for_display(example_people_data) == [
+        "Alfonsa Ruiz: Senior Software Engineer",
+        "Sayid Khan: Project Manager",
+    ]
+
+def test_format_data_for_excel(example_people_data):
+    assert format_data_for_excel(example_people_data) == """given,family,title
+Alfonsa,Ruiz,Senior Software Engineer
+Sayid,Khan,Project Manager
+"""
+```
+
+This makes the test code shorter, but there is a clear path back to the data it depends on.
+
+### When to Avoid Fixtures
+
+Fixtures are not always good for tests that require slight variations of the data. A lot of fixtures in your test code is not better than a lot of plain data objects. 
+
+### How to Use Fixtures at Scale
+
+Fixtures are **Modular**. They can be imported and import other modules and fixtures. You can move fixtures from test modules into more general fixture related modules and import them into any tests where they are needed.
+
+If you want to make a fixture available for your whole project without having to import it, a special configuration modules called [`conftest.py`](https://docs.pytest.org/en/6.2.x/fixture.html#conftest-py-sharing-fixtures-across-multiple-files) lets yo do that. `pytest` looks for a `conftext.py` module in each directory. If you add your general-purpose fixtures to the `conftest.py` module, then you'll be able to use that fixture throughout the module's parent directory and in any subdirectories without having to import it. This is a good place to put your most commonly used fixtures.
+
+Another use case for fixtures and `conftest.py` is guarding access to resources. For example if you have a test suite that deals with API calls you want to ensure that the test suite doesn't make any real network calls even if someone accidentally writes a test that does. `pytest` provides a [`monkeypatch`](https://docs.pytest.org/en/latest/monkeypatch.html) fixture to replace values and behaviors which you can use for this scenario.
+
+```python
+# conftest.py
+
+import pytest
+import requests
+
+@pytest.fixture(autouse=True)
+def disable_network_calls(monkeypatch):
+    def stunted_get():
+        raise RuntimeError("Network access not allowed during testing!")
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: stunted_get())
+```
+
+In example above by placing `disable_network_calls()` in `conftest.py` and adding the `autouse=True` option, you ensure that network calls will be disabled in every test in the suite. Any test that calls `requests.get()` will get the runtime exception from the above code.
+
 ## Marks: Categorizing Tests
 
+ `pytest` lets you define categories for your tests and has options for including or excluding categories when you run your suite. You can mark a test with any number of categories.
+
+  You can use `--strict-markers` flag to the `pytest` command to make sure that all marks in your tests are registered in your `pytest` configuration file `pytest.ini`. This prevents you from running your tests until you register any unknown marks. This is good for dealing with possible typos in mark names and to force an inventory of marks.  For more details see [pytest documentation](https://docs.pytest.org/en/latest/mark.html#registering-marks) 
+You can use `@pytest.mark.my_mark` to add a category to a test and then run test with that mark with the command `pytest -m my_mark`.  You can also exclude the test with this mark by using the command `pytest -m not my_mark`. You can also use an `autouse` fixture to limit access (to an API or a database for example) to those with an appropriate mark.
+
+Some plugins add their own marks as well.
+
+`pytest` provides some out of the box marks:
+
+* skip - skips a test unconditionally
+* skipif - skips a test if expression passed to it evaluates to True
+* xfail - indicates that a test is expected to fail, so if the test does fila, the overall suite can still result in a passing status.
+* parametrize - creates multiple variants of a test with different values as argumetns. 
+
+You can see a list of all markers `pytest` knows about by running `pytest --markers`
+
 ## Parametrization: Combining Tests
+
+START HERE
 
 ## Duration Reports: Fighting Slow Tests
 
