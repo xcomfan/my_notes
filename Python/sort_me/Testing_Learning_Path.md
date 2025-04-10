@@ -3227,11 +3227,103 @@ You can see a list of all markers `pytest` knows about by running `pytest --mark
 
 ## Parametrization: Combining Tests
 
-START HERE
+If you do have many tests where the difference in variance in input data you want to use [parameterization](http://doc.pytest.org/en/latest/example/parametrize.html) . You can parametrize a single test definition and `pytest` will create variants of the test for you with parameters you specify.
+
+As an example you can replace the below set of tests:
+
+```python
+def test_is_palindrome_empty_string():
+    assert is_palindrome("")
+
+def test_is_palindrome_single_character():
+    assert is_palindrome("a")
+
+def test_is_palindrome_mixed_casing():
+    assert is_palindrome("Bob")
+
+def test_is_palindrome_with_spaces():
+    assert is_palindrome("Never odd or even")
+
+def test_is_palindrome_with_punctuation():
+    assert is_palindrome("Do geese see God?")
+
+def test_is_palindrome_not_palindrome():
+    assert not is_palindrome("abc")
+
+def test_is_palindrome_not_quite():
+    assert not is_palindrome("abab")
+```
+
+with:
+
+```python
+@pytest.mark.parametrize("palindrome", [
+    "",
+    "a",
+    "Bob",
+    "Never odd or even",
+    "Do geese see God?",
+])
+def test_is_palindrome(palindrome):
+    assert is_palindrome(palindrome)
+
+@pytest.mark.parametrize("non_palindrome", [
+    "abc",
+    "abab",
+])
+def test_is_palindrome_not_palindrome(non_palindrome):
+    assert not is_palindrome(non_palindrome)
+```
+
+The first argument to `parametrize()` is a comma-delimited string of parameter names. You don't have to provide more than one name as in our example. The second argument is a list of either tuples or single values that represent the parameter values.
+
+We can combine out two tests above with:
+
+```python
+@pytest.mark.parametrize("maybe_palindrome, expected_result", [
+    ("", True),
+    ("a", True),
+    ("Bob", True),
+    ("Never odd or even", True),
+    ("Do geese see God?", True),
+    ("abc", False),
+    ("abab", False),
+])
+def test_is_palindrome(maybe_palindrome, expected_result):
+    assert is_palindrome(maybe_palindrome) == expected_result
+```
 
 ## Duration Reports: Fighting Slow Tests
 
-## Useful pytest Plugins
+`pytest` can automatically record test duration and report the longest running ones.  The `--durations` option of the `pytest` command lets you include a duration report in your test results. `--durations` expects and integer argument `n` and will report the slowest `n` tests. You can increate verbosity with the `-vv` option combined with `--durations`
+
+```shell
+(venv) $ pytest --durations=5
+...
+============================= slowest 5 durations =============================
+3.03s call     test_code.py::test_request_read_timeout
+1.07s call     test_code.py::test_request_connection_timeout
+0.57s call     test_code.py::test_database_read
+
+(2 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ===========================
+...
+```
+
+## Useful `pytest` Plugins
+
+* [pytest-randomly](https://github.com/pytest-dev/pytest-randomly) - Forces your tests to run in random order. Useful to be safe from relying on your tests running in a certain order for success.
+* [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) - Integrates with the [coverage](https://coverage.readthedocs.io/) so you can run `pytest --cov` and see a code coverage report.
+* [pytest-django](https://pytest-django.readthedocs.io/en/latest/) - Provides useful features and marks for dealing with `Django` tests. 
+* [pytest-bdd](https://pytest-bdd.readthedocs.io/en/latest/) lets you use [Gherkin language](http://docs.behat.org/en/v2.5/guides/1.gherkin.html) to write feature test for your code.
+
+More plugins can be found at [pytest third party plugins list](https://docs.pytest.org/en/latest/reference/plugin_list.html)
+
+## Notes from the Video Section
+
+when you run the `pytest` command it will look for files startign with `test_` and test methods that also start with `test_`
+
+
 
 
 
